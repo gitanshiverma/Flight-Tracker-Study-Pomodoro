@@ -1,0 +1,46 @@
+[
+  {
+    "flightNumber": "AI-865",
+    "callsign": "AIC865",
+    "airline": "Air India",
+    "origin": { "code": "DEL", "name": "Indira Gandhi Intl", "lat": 28.5562, "lon": 77.1000 },
+    "destination": { "code": "BOM", "name": "Chhatrapati Shivaji Maharaj Intl", "lat": 19.0896, "lon": 72.8656 },
+    "distanceKm": 1137,
+    "avgSpeedKmh": 830,
+    "durationMinutes": 135,
+    "elapsedSeedMinutes": 8.6
+  },
+  {
+    "flightNumber": "BA-178",
+    "callsign": "BAW178",
+    "airline": "British Airways",
+    "origin": { "code": "JFK", "name": "John F. Kennedy Intl", "lat": 40.6413, "lon": -73.7781 },
+    "destination": { "code": "LHR", "name": "London Heathrow", "lat": 51.4700, "lon": -0.4543 },
+    "distanceKm": 5540,
+    "avgSpeedKmh": 850,
+    "durationMinutes": 420,
+    "elapsedSeedMinutes": 95
+  },
+  {
+    "flightNumber": "EK-511",
+    "callsign": "UAE511",
+    "airline": "Emirates",
+    "origin": { "code": "DXB", "name": "Dubai Intl", "lat": 25.2532, "lon": 55.3657 },
+    "destination": { "code": "SIN", "name": "Singapore Changi", "lat": 1.3644, "lon": 103.9915 },
+    "distanceKm": 5843,
+    "avgSpeedKmh": 890,
+    "durationMinutes": 435,
+    "elapsedSeedMinutes": 220
+  },
+  {
+    "flightNumber": "6E-2341",
+    "callsign": "IGO2341",
+    "airline": "IndiGo",
+    "origin": { "code": "BLR", "name": "Kempegowda Intl", "lat": 13.1986, "lon": 77.7066 },
+    "destination": { "code": "DEL", "name": "Indira Gandhi Intl", "lat": 28.5562, "lon": 77.1000 },
+    "distanceKm": 1740,
+    "avgSpeedKmh": 800,
+    "durationMinutes": 150,
+    "elapsedSeedMinutes": 40
+  }
+]
