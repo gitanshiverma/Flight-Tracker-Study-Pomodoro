@@ -1,601 +1,352 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Study Flight Dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --panel:rgba(15,20,32,0.55);
-    --panel-border:rgba(255,255,255,0.09);
-    --text:#e8ecf3;
-    --muted:#8b93a7;
-    --red:#ff3b3b;
-    --blue:#5ac8ff;
-  }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  html,body{width:100%; height:100%; overflow:hidden; background:#03050a;
-    font-family:'Inter',sans-serif; color:var(--text); transition:background 1.2s ease;}
-  body.day{background:#bfe3ff;}
-  body.day{ --text:#1c2733; --muted:#516072; --panel:rgba(255,255,255,0.55); --panel-border:rgba(20,30,45,0.12); }
-
-  .scene{ position:fixed; inset:0; perspective:1400px; overflow:hidden; }
-  .sky{
-    position:absolute; inset:-12%;
-    width:124%; height:124%;
-    transform-style:preserve-3d;
-    will-change:transform;
-    transition:background 1.2s ease;
-    background:radial-gradient(ellipse at 50% 10%, #0b1120 0%, #04070f 45%, #010204 100%);
-  }
-  body.day .sky{
-    background:linear-gradient(180deg, #6ec3ff 0%, #a9dcff 35%, #d9f0ff 70%, #eef8ff 100%);
-  }
-
-  canvas{position:absolute; inset:0; width:100%; height:100%; display:block;}
-  #stars{transition:opacity 1.2s ease;}
-  body.day #stars{opacity:0;}
-  #lights{transition:opacity 1.2s ease; mix-blend-mode:screen;}
-  body.day #lights{opacity:0;}
-
-  .cloud{
-    position:absolute; border-radius:50%; filter:blur(20px); pointer-events:none;
-    background:radial-gradient(circle at 35% 35%, rgba(255,255,255,0.14), rgba(180,190,210,0.04) 60%, transparent 75%);
-    transition:background 1.2s ease, filter 1.2s ease;
-  }
-  body.day .cloud{
-    background:radial-gradient(circle at 35% 35%, rgba(255,255,255,0.95), rgba(255,255,255,0.55) 55%, rgba(255,255,255,0.1) 78%);
-    filter:blur(14px);
-  }
-
-  .sun-wrap{ position:absolute; top:10%; left:70%; width:170px; height:170px; opacity:0; transition:opacity 1.2s ease; pointer-events:none; }
-  body.day .sun-wrap{opacity:1;}
-  .sun-core{
-    position:absolute; inset:35px; border-radius:50%;
-    background:radial-gradient(circle at 40% 35%, #fff7d6, #ffd76a 55%, #ffbe3d 100%);
-    box-shadow:0 0 60px 18px rgba(255,206,90,0.55);
-  }
-  .sun-rays{ position:absolute; inset:0; animation:spin 24s linear infinite; }
-  .sun-rays span{ position:absolute; top:50%; left:50%; width:3px; height:22px; background:#ffd76a; border-radius:2px; opacity:0.8; transform-origin:50% 85px; }
-  @keyframes spin{ to{ transform:rotate(360deg);} }
-
-  .bird-layer{ position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity 1.2s ease; }
-  body.day .bird-layer{opacity:1;}
-  .bird{ position:absolute; width:26px; height:14px; }
-  .bird svg{width:100%; height:100%; display:block;}
-  .bird path{ stroke:#33414f; stroke-width:2.4; fill:none; stroke-linecap:round; transform-origin:50% 50%; }
-  .bird .wingL{ animation:flap 0.55s ease-in-out infinite alternate; }
-  .bird .wingR{ animation:flap 0.55s ease-in-out infinite alternate-reverse; }
-  @keyframes flap{ from{ transform:scaleY(1) rotate(0deg); } to{ transform:scaleY(0.4) rotate(6deg); } }
-
-  .flightsvg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
-  .route-glow{filter:drop-shadow(0 0 6px rgba(255,59,59,0.6));}
-  .plane-icon path{fill:#ffffff; transition:fill 1.2s ease;}
-  body.day .plane-icon path{fill:#20303f;}
-
-  .ui{ position:fixed; inset:0; pointer-events:none; }
-  .card{
-    position:absolute; background:var(--panel); border:1px solid var(--panel-border);
-    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-    border-radius:14px; padding:16px 20px; pointer-events:auto;
-    transition:background 1.2s ease, border-color 1.2s ease, color 0.4s ease;
-  }
-
-  .study-card{ top:28px; left:28px; width:300px;}
-  .study-card .label{font-size:11px; letter-spacing:0.12em; color:var(--muted); font-weight:500;}
-  .study-card .time{font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:500; margin-top:6px; color:var(--text);}
-  .study-card .track{margin-top:12px; height:3px; background:rgba(120,130,150,0.18); border-radius:2px; overflow:hidden;}
-  .study-card .fill{height:100%; width:0%; background:var(--blue); transition:width 1s linear;}
-
-  .flight-card{ top:28px; right:28px; width:280px; text-align:right;}
-  .flight-card .label{font-size:11px; letter-spacing:0.12em; color:var(--muted); font-weight:500;}
-  .flight-card .route{font-size:24px; font-weight:600; margin-top:6px; color:var(--text);}
-  .flight-card .meta{font-size:12px; color:var(--muted); margin-top:8px; line-height:1.6;}
-  .flight-card .lands{color:var(--text);}
-  .flight-card .conn{font-size:10px; letter-spacing:0.08em; margin-top:8px; color:var(--muted); opacity:0.7;}
-  .flight-card .conn.live{color:#5affa0;}
-
-  .pomodoro{ left:50%; bottom:32px; transform:translateX(-50%); width:340px; text-align:center; }
-  .pomodoro .label{font-size:11px; letter-spacing:0.12em; color:var(--muted); font-weight:500;}
-  .pomodoro .clock{font-family:'JetBrains Mono',monospace; font-size:44px; font-weight:700; margin-top:4px; letter-spacing:0.02em; color:var(--text);}
-  .pomodoro .ring-track{margin-top:12px; height:4px; background:rgba(120,130,150,0.18); border-radius:2px; overflow:hidden;}
-  .pomodoro .ring-fill{height:100%; width:0%; background:var(--red); transition:width 1s linear;}
-  .pomodoro .controls{margin-top:14px; display:flex; gap:10px; justify-content:center;}
-  .pomodoro button{
-    font-family:'Inter',sans-serif; font-size:12px; font-weight:500;
-    background:rgba(120,130,150,0.12); color:var(--text); border:1px solid var(--panel-border);
-    border-radius:8px; padding:8px 16px; cursor:pointer; transition:background 0.15s;
-  }
-  .pomodoro button:hover{background:rgba(120,130,150,0.22);}
-  .pomodoro button.primary{background:var(--red); border-color:var(--red); color:#fff;}
-  .pomodoro button.primary:hover{background:#ff5252;}
-
-  .mode-toggle{
-    top:28px; left:50%; transform:translateX(-50%); width:auto; padding:8px 14px;
-    display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;
-    font-size:12px; font-weight:500;
-  }
-  .mode-toggle .dot{ width:8px; height:8px; border-radius:50%; background:var(--blue); transition:background 0.4s ease; }
-  body.day .mode-toggle .dot{background:#ffb648;}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroFocus · 3D Flight Tracker Pomodoro Study</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="scene" id="scene">
-  <div class="sky" id="sky">
-    <canvas id="stars"></canvas>
-    <canvas id="lights"></canvas>
-    <div id="cloudLayer"></div>
-    <div class="sun-wrap"><div class="sun-rays" id="sunRays"></div><div class="sun-core"></div></div>
-    <div class="bird-layer" id="birdLayer"></div>
-    <svg class="flightsvg" id="flightsvg" viewBox="0 0 1000 1000" preserveAspectRatio="none">
-      <path id="routePath" class="route-glow" d="" fill="none" stroke="#ff3b3b" stroke-width="2.4" stroke-dasharray="2 8" stroke-linecap="round" opacity="0.85"/>
-      <path id="routeDone" d="" fill="none" stroke="#ff3b3b" stroke-width="2.4" stroke-linecap="round"/>
-      <circle id="originDot" r="4" fill="#ff3b3b"/>
-      <circle id="destDot" r="4" fill="#ff3b3b"/>
-      <g id="planeGroup" class="plane-icon"><path d="M0,-7 L4,5 L0,2 L-4,5 Z"/></g>
+  <!-- =====================================================================
+       3D WEBGL VIEWPORT & CINEMATIC BACKGROUND LAYERS
+  ===================================================================== -->
+  <div class="viewport" id="viewport">
+    <!-- WebGL 3D Canvas (Three.js real-time night flight, wing & glowing city) -->
+    <canvas id="webglCanvas"></canvas>
+
+    <!-- Photo backdrop layer for High-Res Cinematic Photo Wing Mode -->
+    <div id="photoBgLayer" class="photo-bg-layer mode-wing"></div>
+
+    <!-- Wing strobe light flare overlay (for photo blend mode) -->
+    <div id="wingStrobeOverlay" class="wing-strobe-flash"></div>
+
+    <!-- Atmospheric gradient vignette -->
+    <div class="atmosphere-vignette"></div>
+
+    <!-- Airliner Passenger Window Frame (Toggleable) -->
+    <div id="windowFrame" class="window-frame-overlay"></div>
+  </div>
+
+  <!-- Zen Mode Floating Restore Button (Visible only in Zen Wallpaper mode) -->
+  <button id="zenRestoreBtn" class="zen-restore-btn" onclick="toggleZenMode(false)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
     </svg>
+    <span>Exit Zen Mode (ESC)</span>
+  </button>
+
+  <!-- =====================================================================
+       UI GLASSMORPHISM INTERFACE LAYER
+  ===================================================================== -->
+  <div id="uiLayer" class="ui-layer">
+
+    <!-- 1. TOP HUD BAR -->
+    <header class="top-hud">
+      <div class="brand-chip">
+        <div class="brand-logo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.3c.4-.2.6-.6.5-1.1z"/>
+          </svg>
+          <span>AEROFOCUS</span>
+        </div>
+        <div id="seatbeltBadge" class="seatbelt-badge" onclick="toggleSeatbeltSign()" title="Click to toggle Fasten Seatbelt sign">
+          <span class="seatbelt-icon">🔔</span>
+          <span id="seatbeltText">SEATBELT ON</span>
+        </div>
+      </div>
+
+      <div class="hud-actions">
+        <!-- Wallpaper Background Mode Selector -->
+        <button class="hud-btn" id="bgModeBtn" onclick="cycleWallpaperMode()" title="Switch 3D Scene / Photo Wing / Sunset Horizon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+          </svg>
+          <span id="bgModeLabel">3D Night World</span>
+        </button>
+
+        <!-- Window Frame Toggle -->
+        <button class="hud-btn" id="windowToggleBtn" onclick="toggleWindowFrame()" title="Toggle Cabin Window Frame">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="5" ry="5"/>
+            <line x1="12" y1="3" x2="12" y2="21"/>
+          </svg>
+          <span>Window</span>
+        </button>
+
+        <!-- Cabin Sound Audio Hum Toggle -->
+        <button class="hud-btn" id="audioToggleBtn" onclick="toggleCabinAudio()" title="Toggle Cabin Jet Engine Ambience">
+          <svg id="audioIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          </svg>
+          <span id="audioLabel">Cabin Hum: Off</span>
+        </button>
+
+        <!-- Flight Search & Study Duration Matcher Button -->
+        <button class="hud-btn primary" id="openFlightSearchBtn" onclick="openFlightSearchModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span>Choose Flight</span>
+        </button>
+
+        <!-- Pure Zen Wallpaper Mode -->
+        <button class="hud-btn" onclick="toggleZenMode(true)" title="Hide UI for full 3D animated wallpaper (Space/W)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+          <span>Zen</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 2. STRAIGHT ROUTE RADAR TRACK CONTAINER -->
+    <section class="straight-route-container">
+      <div class="route-header-row">
+        <div class="flight-identity">
+          <span id="airlineTag" class="airline-tag">EMIRATES</span>
+          <span id="flightNoDisplay" class="flight-no">EK 501</span>
+          <span id="aircraftTypeDisplay" class="aircraft-type">Boeing 777-300ER</span>
+        </div>
+        <div id="flightPhaseTag" class="flight-phase-tag">
+          <span class="radar-dot"></span>
+          <span id="flightPhaseText">CRUISING · FL380</span>
+        </div>
+      </div>
+
+      <!-- Straight Route Line Track with Moving Plane Marker -->
+      <div class="straight-track-wrapper">
+        <div class="airport-endpoints">
+          <div class="endpoint-box orig">
+            <span id="originCode" class="endpoint-code">BOM</span>
+            <span id="originCity" class="endpoint-city">Mumbai, India</span>
+            <span id="depTime" class="endpoint-time">STD: 04:30 UTC</span>
+          </div>
+          <div class="endpoint-box dest">
+            <span id="destCode" class="endpoint-code">DXB</span>
+            <span id="destCity" class="endpoint-city">Dubai, UAE</span>
+            <span id="arrTime" class="endpoint-time">STA: 07:45 UTC</span>
+          </div>
+        </div>
+
+        <!-- The Straight Horizontal Track -->
+        <div class="straight-line-track">
+          <div id="routeProgressBar" class="straight-line-filled"></div>
+          <div class="straight-line-guide"></div>
+
+          <!-- Moving Airplane Marker Node -->
+          <div id="planeMarker" class="moving-airplane-node" style="left: 0%;">
+            <div class="airplane-icon-wrap">
+              <div class="airplane-pulse-ring"></div>
+              <svg viewBox="0 0 24 24">
+                <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Flight Route Waypoint Waymarks -->
+        <div class="waypoint-markers">
+          <span id="wp1">DEP (0%)</span>
+          <span id="wp2">CLIMB (25%)</span>
+          <span id="wp3">CRUISE (50%)</span>
+          <span id="wp4">DESCENT (75%)</span>
+          <span id="wp5">ARR (100%)</span>
+        </div>
+      </div>
+
+      <!-- Flight Telemetry Stats Row -->
+      <div class="telemetry-row">
+        <div class="tele-item">
+          <span class="tele-label">Altitude</span>
+          <span id="teleAltitude" class="tele-val">38,000 <span>FT</span></span>
+        </div>
+        <div class="tele-item">
+          <span class="tele-label">Ground Speed</span>
+          <span id="teleSpeed" class="tele-val">495 <span>KTS</span></span>
+        </div>
+        <div class="tele-item">
+          <span class="tele-label">Distance Rem.</span>
+          <span id="teleDistance" class="tele-val">1,048 <span>NM</span></span>
+        </div>
+        <div class="tele-item">
+          <span class="tele-label">Estimated ETE</span>
+          <span id="teleETA" class="tele-val">02:15:00</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. BOTTOM STUDY TIMER DOCK -->
+    <footer class="bottom-dock">
+      <!-- Timer Mode Selection Tabs -->
+      <div class="dock-mode-tabs">
+        <button class="dock-mode-tab active" id="tabModePomodoro" onclick="setTimerMode('pomodoro')">POMODORO (25M)</button>
+        <button class="dock-mode-tab" id="tabModeFlight" onclick="setTimerMode('flight')">FLIGHT DURATION SYNC</button>
+        <button class="dock-mode-tab" id="tabModeCustom" onclick="setTimerMode('custom')">CUSTOM STUDY TIME</button>
+      </div>
+
+      <!-- Digital Countdown Display -->
+      <div id="studyClockDisplay" class="study-clock-display">25:00</div>
+      <div id="sessionStatusSub" class="session-status-sub">Ready to Board · Flight Ready</div>
+
+      <!-- Timer Control Action Buttons -->
+      <div class="dock-controls-row">
+        <button id="mainTimerBtn" class="btn-timer-primary" onclick="toggleTimer()">
+          <svg id="timerPlayIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          <span id="mainTimerBtnText">Start Study Session</span>
+        </button>
+        <button class="btn-timer-secondary" onclick="resetTimer()" title="Reset Session">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+          <span>Reset</span>
+        </button>
+      </div>
+    </footer>
+
   </div>
-</div>
 
-<div class="ui">
-  <div class="card mode-toggle" id="modeToggle"><span class="dot"></span><span id="modeLabel">Night view</span></div>
+  <!-- =====================================================================
+       FLIGHT SEARCH & STUDY DURATION MATCHER MODAL
+  ===================================================================== -->
+  <div id="flightModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span>Flight Selector & Study Duration Matcher</span>
+        </div>
+        <button class="modal-close" onclick="closeFlightSearchModal()">&times;</button>
+      </div>
 
-  <div class="card study-card">
-    <div class="label">STUDYING SINCE</div>
-    <div class="time" id="studyTime">00:00</div>
-    <div class="track"><div class="fill" id="studyFill"></div></div>
-  </div>
+      <div class="modal-tabs-bar">
+        <button class="modal-tab-btn active" id="modalTabDuration" onclick="switchModalTab('duration')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span>Match Study Duration</span>
+        </button>
+        <button class="modal-tab-btn" id="modalTabFromTo" onclick="switchModalTab('fromto')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+          <span>From &rarr; To Airport Route</span>
+        </button>
+        <button class="modal-tab-btn" id="modalTabAll" onclick="switchModalTab('all')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+          <span>All Flights Database</span>
+        </button>
+      </div>
 
-  <div class="card flight-card">
-    <div class="label" id="flightLabel">AIR INDIA · AI-865</div>
-    <div class="route" id="flightRoute">DEL &rarr; BOM</div>
-    <div class="meta">
-      <span id="flightSpeed">830</span> km/h · <span id="flightDist">1137</span> km total<br>
-      Lands in <span class="lands" id="landsIn">--:--:--</span>
+      <div class="modal-body-content">
+        <!-- Tab 1: Duration Matcher -->
+        <div id="tabContentDuration">
+          <div class="duration-input-box">
+            <div class="duration-input-label">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <span>Set Your Target Study Time:</span>
+            </div>
+            <div class="duration-inputs-row">
+              <div class="time-input-group">
+                <input type="number" id="inputHours" min="0" max="18" value="2" onchange="onDurationInputsChanged()" onkeyup="onDurationInputsChanged()">
+                <span>Hours</span>
+              </div>
+              <div class="time-input-group">
+                <input type="number" id="inputMinutes" min="0" max="59" step="5" value="15" onchange="onDurationInputsChanged()" onkeyup="onDurationInputsChanged()">
+                <span>Minutes</span>
+              </div>
+            </div>
+            <div class="quick-duration-pills">
+              <button class="pill-btn" onclick="setQuickDuration(0, 25)">⚡ 25m Sprint</button>
+              <button class="pill-btn" onclick="setQuickDuration(0, 50)">🎯 50m Focus</button>
+              <button class="pill-btn" onclick="setQuickDuration(1, 30)">🧠 1h 30m Deep</button>
+              <button class="pill-btn" onclick="setQuickDuration(2, 15)">✈️ 2h 15m Cruise</button>
+              <button class="pill-btn" onclick="setQuickDuration(4, 30)">🌍 4h 30m Long-Haul</button>
+              <button class="pill-btn" onclick="setQuickDuration(8, 0)">🚀 8h Intercontinental</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: From -> To Airport Route -->
+        <div id="tabContentFromTo" style="display: none;">
+          <div class="from-to-row">
+            <div class="select-group">
+              <label for="selectOrigin">Departure Airport (From)</label>
+              <select id="selectOrigin" onchange="onRouteFilterChanged()">
+                <option value="">-- All Origin Airports --</option>
+              </select>
+            </div>
+            <div style="text-align: center; color: var(--accent-blue); font-size: 20px;">✈️</div>
+            <div class="select-group">
+              <label for="selectDestination">Arrival Airport (To)</label>
+              <select id="selectDestination" onchange="onRouteFilterChanged()">
+                <option value="">-- All Destination Airports --</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search input box for instant filter -->
+        <div style="margin-bottom: 14px;">
+          <input type="text" id="searchInput" placeholder="Search by flight number, city, or airline (e.g. EK501, Tokyo, London, Singapore)..." 
+                 style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 10px 14px; color: #fff; font-size: 13px; outline: none;" 
+                 oninput="onSearchInputChanged()">
+        </div>
+
+        <!-- Flight results listing grid -->
+        <div id="flightResultsGrid" class="flight-results-grid">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
     </div>
-    <div class="conn" id="connStatus">connecting to backend&hellip;</div>
   </div>
 
-  <div class="card pomodoro">
-    <div class="label">FOCUS SESSION</div>
-    <div class="clock" id="pomodoroClock">25:00</div>
-    <div class="ring-track"><div class="ring-fill" id="pomodoroFill"></div></div>
-    <div class="controls">
-      <button class="primary" id="pomodoroToggle">Start</button>
-      <button id="pomodoroReset">Reset</button>
+  <!-- =====================================================================
+       CELEBRATION COMPLETION MODAL (FLIGHT LANDED / STUDY COMPLETED)
+  ===================================================================== -->
+  <div id="celebrationModal" class="celebration-modal">
+    <div class="celebration-card">
+      <div class="celebration-icon">🛬</div>
+      <div class="celebration-title">Flight Landed Safely!</div>
+      <p style="color: var(--text-secondary); font-size: 13px; margin-top: 6px;">
+        Congratulations! You have completed your flight study session.
+      </p>
+      <div class="celebration-stats">
+        <div>
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Study Time</div>
+          <div id="celDuration" style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--accent-blue); margin-top: 4px;">2h 15m</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Distance Covered</div>
+          <div id="celDistance" style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--accent-green); margin-top: 4px;">1,048 NM</div>
+        </div>
+      </div>
+      <button class="btn-timer-primary" style="margin: 0 auto;" onclick="closeCelebrationModal()">
+        <span>Continue to Next Flight</span>
+      </button>
     </div>
   </div>
-</div>
 
-<script>
-/* =========================================================
-   Day / night mode
-========================================================= */
-const body = document.body;
-const modeToggle = document.getElementById('modeToggle');
-const modeLabel = document.getElementById('modeLabel');
-let isDay = false;
-function applyMode(){
-  body.classList.toggle('day', isDay);
-  modeLabel.textContent = isDay ? 'Day view' : 'Night view';
-}
-modeToggle.addEventListener('click', ()=>{ isDay = !isDay; applyMode(); });
-applyMode();
-
-/* =========================================================
-   Stars
-========================================================= */
-const starsCanvas = document.getElementById('stars');
-const sctx = starsCanvas.getContext('2d');
-let stars = [];
-function sizeStarsCanvas(){
-  starsCanvas.width = window.innerWidth * 1.24;
-  starsCanvas.height = window.innerHeight * 1.24;
-  stars = [];
-  const count = Math.floor((starsCanvas.width * starsCanvas.height) / 3200);
-  for(let i=0;i<count;i++){
-    stars.push({ x:Math.random()*starsCanvas.width, y:Math.random()*starsCanvas.height*0.7,
-      r:Math.random()*1.3+0.3, phase:Math.random()*Math.PI*2, speed:Math.random()*0.02+0.005 });
-  }
-}
-function drawStars(t){
-  sctx.clearRect(0,0,starsCanvas.width, starsCanvas.height);
-  for(const s of stars){
-    const tw = 0.5 + 0.5*Math.sin(t*s.speed*60 + s.phase);
-    sctx.globalAlpha = 0.25 + tw*0.75;
-    sctx.fillStyle = '#ffffff';
-    sctx.beginPath(); sctx.arc(s.x, s.y, s.r, 0, Math.PI*2); sctx.fill();
-  }
-  sctx.globalAlpha = 1;
-}
-
-/* =========================================================
-   Procedural city lights — organic landmass + river + street
-   grid + highways, styled after a real plane-window night shot.
-========================================================= */
-const lightsCanvas = document.getElementById('lights');
-const lctx = lightsCanvas.getContext('2d');
-let cityPoints = [];
-let highways = [];
-
-function landDensity(x, y, blobs){
-  let d = 0;
-  for(const b of blobs){
-    const dx=x-b.cx, dy=y-b.cy;
-    const dist = Math.sqrt(dx*dx+dy*dy)/b.r;
-    if(dist < 1.6) d += Math.max(0, 1 - dist) ** 1.6;
-  }
-  return d;
-}
-function distToCurve(x, y, p0, p1, p2, samples){
-  let min = Infinity;
-  for(let i=0;i<=samples;i++){
-    const t=i/samples;
-    const cx=(1-t)*(1-t)*p0.x+2*(1-t)*t*p1.x+t*t*p2.x;
-    const cy=(1-t)*(1-t)*p0.y+2*(1-t)*t*p1.y+t*t*p2.y;
-    const d=Math.hypot(x-cx,y-cy);
-    if(d<min) min=d;
-  }
-  return min;
-}
-
-function buildCity(){
-  const W = lightsCanvas.width, H = lightsCanvas.height;
-  const bandTop = H*0.42;
-
-  // irregular landmasses (metaballs) across the lower band
-  const blobs = [];
-  const blobCount = 5 + Math.floor(Math.random()*2);
-  for(let i=0;i<blobCount;i++){
-    blobs.push({
-      cx: W*(0.05 + Math.random()*0.9),
-      cy: bandTop + (H-bandTop)*(0.15+Math.random()*0.8),
-      r: W*(0.09 + Math.random()*0.14)
-    });
-  }
-
-  // a river/strait curving through the city (carved out of the land)
-  const river = {
-    p0:{x:W*-0.05, y:bandTop+(H-bandTop)*0.55},
-    p1:{x:W*0.5,  y:bandTop+(H-bandTop)*0.3},
-    p2:{x:W*1.05, y:bandTop+(H-bandTop)*0.75}
-  };
-  const riverHalfWidth = W*0.014;
-  const bankGlow = W*0.01;
-
-  cityPoints = [];
-  const step = Math.max(4, Math.floor(W/230));
-  for(let y=bandTop; y<H; y+=step){
-    for(let x=0; x<W; x+=step){
-      const jx = x + (Math.random()-0.5)*step*0.9;
-      const jy = y + (Math.random()-0.5)*step*0.9;
-      const density = landDensity(jx, jy, blobs);
-      if(density <= 0.02) continue;
-
-      const dRiver = distToCurve(jx, jy, river.p0, river.p1, river.p2, 40);
-      if(dRiver < riverHalfWidth) continue; // water — no lights
-
-      const near = dRiver < riverHalfWidth + bankGlow;
-      const prob = Math.min(1, density) * (near ? 1 : 0.55);
-      if(Math.random() > prob) continue;
-
-      const isHighwayLike = near || Math.random() < 0.04;
-      cityPoints.push({
-        x: jx, y: jy,
-        r: 0.5 + density*1.1 + (isHighwayLike?0.4:0),
-        hue: isHighwayLike ? '150,210,255' : (Math.random()<0.08 ? '255,255,255' : '255,178,90'),
-        phase: Math.random()*Math.PI*2,
-        speed: Math.random()*0.02+0.006,
-        density
-      });
-      if(cityPoints.length > 3200) return finishHighways(blobs);
-    }
-  }
-  finishHighways(blobs);
-
-  function finishHighways(blobs){
-    // a handful of long connecting roads between strong clusters
-    highways = [];
-    const strong = blobs.slice().sort((a,b)=>b.r-a.r).slice(0,4);
-    for(let i=0;i<strong.length;i++){
-      for(let j=i+1;j<strong.length;j++){
-        if(Math.random()<0.55) continue;
-        const a=strong[i], b=strong[j];
-        const mx=(a.cx+b.cx)/2 + (Math.random()-0.5)*W*0.1;
-        const my=(a.cy+b.cy)/2 + (Math.random()-0.5)*W*0.1;
-        highways.push({ p0:{x:a.cx,y:a.cy}, p1:{x:mx,y:my}, p2:{x:b.cx,y:b.cy} });
-      }
-    }
-  }
-}
-
-function drawLights(t){
-  lctx.clearRect(0,0,lightsCanvas.width, lightsCanvas.height);
-
-  lctx.lineWidth = 1;
-  for(const h of highways){
-    lctx.strokeStyle = 'rgba(160,210,255,0.22)';
-    lctx.beginPath();
-    lctx.moveTo(h.p0.x,h.p0.y);
-    lctx.quadraticCurveTo(h.p1.x,h.p1.y,h.p2.x,h.p2.y);
-    lctx.stroke();
-  }
-
-  for(const p of cityPoints){
-    const tw = 0.6 + 0.4*Math.sin(t*p.speed*60 + p.phase);
-    lctx.globalAlpha = Math.min(1, (0.25 + tw*0.55) * (0.4+p.density));
-    lctx.fillStyle = `rgba(${p.hue},1)`;
-    lctx.beginPath();
-    lctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-    lctx.fill();
-  }
-  lctx.globalAlpha = 1;
-}
-
-function sizeAllCanvases(){
-  starsCanvas.width = lightsCanvas.width = window.innerWidth * 1.24;
-  starsCanvas.height = lightsCanvas.height = window.innerHeight * 1.24;
-  sizeStarsCanvas();
-  buildCity();
-}
-sizeAllCanvases();
-window.addEventListener('resize', sizeAllCanvases);
-
-/* =========================================================
-   Sun rays
-========================================================= */
-const sunRays = document.getElementById('sunRays');
-for(let i=0;i<12;i++){
-  const ray=document.createElement('span');
-  ray.style.transform=`rotate(${i*30}deg) translateY(-85px)`;
-  sunRays.appendChild(ray);
-}
-
-/* =========================================================
-   Birds
-========================================================= */
-const birdLayer = document.getElementById('birdLayer');
-const birdSVG = `<svg viewBox="0 0 26 14"><path class="wingL" d="M13,7 Q6,0 0,4"/><path class="wingR" d="M13,7 Q20,0 26,4"/></svg>`;
-const birdDefs = [];
-(function makeBirds(){
-  const n=6;
-  for(let i=0;i<n;i++){
-    const el=document.createElement('div');
-    el.className='bird'; el.innerHTML=birdSVG;
-    birdLayer.appendChild(el);
-    birdDefs.push({ el, y:12+Math.random()*35, speed:0.02+Math.random()*0.03,
-      offset:Math.random(), bob:Math.random()*Math.PI*2, scale:0.7+Math.random()*0.7 });
-  }
-})();
-function animateBirds(t){
-  birdDefs.forEach(b=>{
-    const progress = (t*b.speed*0.02 + b.offset) % 1.3 - 0.15;
-    const x = progress*(window.innerWidth+200) - 100;
-    const y = window.innerHeight*(b.y/100) + Math.sin(t*0.002+b.bob)*10;
-    b.el.style.transform = `translate(${x}px, ${y}px) scale(${b.scale})`;
-  });
-}
-
-/* =========================================================
-   Clouds
-========================================================= */
-const cloudLayer = document.getElementById('cloudLayer');
-const cloudDefs = [];
-(function makeClouds(){
-  const n=9;
-  for(let i=0;i<n;i++){
-    const el=document.createElement('div');
-    el.className='cloud';
-    const w=220+Math.random()*380, h=w*(0.45+Math.random()*0.25);
-    el.style.width=w+'px'; el.style.height=h+'px';
-    el.style.top=(Math.random()*90)+'%'; el.style.left=(Math.random()*110-5)+'%';
-    cloudLayer.appendChild(el);
-    cloudDefs.push({ el, depth:0.3+Math.random()*0.8,
-      driftSpeed:(0.002+Math.random()*0.004)*(Math.random()<0.5?1:-1), phase:Math.random()*1000 });
-  }
-})();
-
-/* =========================================================
-   3D parallax: mouse-driven tilt + a slow constant auto-drift
-   so the scene keeps moving like a plane banking, even with no
-   cursor input.
-========================================================= */
-const sky = document.getElementById('sky');
-let mouseRX=0, mouseRY=0, curRX=0, curRY=0;
-window.addEventListener('mousemove', (e)=>{
-  const nx=(e.clientX/window.innerWidth)*2-1;
-  const ny=(e.clientY/window.innerHeight)*2-1;
-  mouseRY = nx*10;
-  mouseRX = -ny*8;
-});
-window.addEventListener('mouseleave', ()=>{ mouseRX=0; mouseRY=0; });
-
-function animateParallax(t){
-  const autoRY = Math.sin(t*0.00012)*5;
-  const autoRX = Math.cos(t*0.00009)*2.4;
-  const targetRX = mouseRX + autoRX;
-  const targetRY = mouseRY + autoRY;
-  curRX += (targetRX-curRX)*0.05;
-  curRY += (targetRY-curRY)*0.05;
-  sky.style.transform = `rotateX(${curRX}deg) rotateY(${curRY}deg) translateZ(0)`;
-
-  cloudDefs.forEach(c=>{
-    const parX = curRY*c.depth*1.4;
-    const parY = curRX*c.depth*1.4;
-    c.phase += c.driftSpeed;
-    const drift = Math.sin(c.phase)*20;
-    c.el.style.transform = `translate(${parX+drift}px, ${parY}px)`;
-  });
-}
-
-/* =========================================================
-   Flight path + plane (SVG curve, positioned by progress %)
-========================================================= */
-const routePath=document.getElementById('routePath');
-const routeDone=document.getElementById('routeDone');
-const originDot=document.getElementById('originDot');
-const destDot=document.getElementById('destDot');
-const planeGroup=document.getElementById('planeGroup');
-
-const P0={x:120,y:780}, P1={x:820,y:160}, CTRL={x:470,y:1050};
-function pointOnCurve(t){
-  const x=(1-t)*(1-t)*P0.x+2*(1-t)*t*CTRL.x+t*t*P1.x;
-  const y=(1-t)*(1-t)*P0.y+2*(1-t)*t*CTRL.y+t*t*P1.y;
-  return {x,y};
-}
-function tangentOnCurve(t){
-  const dx=2*(1-t)*(CTRL.x-P0.x)+2*t*(P1.x-CTRL.x);
-  const dy=2*(1-t)*(CTRL.y-P0.y)+2*t*(P1.y-CTRL.y);
-  return Math.atan2(dy,dx)*180/Math.PI;
-}
-function buildPathString(t0,t1,steps){
-  let d='';
-  for(let i=0;i<=steps;i++){
-    const t=t0+(t1-t0)*(i/steps);
-    const p=pointOnCurve(t);
-    d += (i===0?'M':'L')+p.x.toFixed(1)+','+p.y.toFixed(1)+' ';
-  }
-  return d;
-}
-routePath.setAttribute('d', buildPathString(0,1,60));
-originDot.setAttribute('cx',P0.x); originDot.setAttribute('cy',P0.y);
-destDot.setAttribute('cx',P1.x); destDot.setAttribute('cy',P1.y);
-
-function renderPlaneAt(frac){
-  frac = Math.min(1, Math.max(0, frac));
-  const p = pointOnCurve(frac);
-  const angle = tangentOnCurve(frac);
-  planeGroup.setAttribute('transform', `translate(${p.x},${p.y}) rotate(${angle+90})`);
-  routeDone.setAttribute('d', buildPathString(0, frac, Math.max(2, Math.floor(60*frac))));
-}
-
-/* =========================================================
-   Backend sync — polls the Express API for live/simulated
-   flight progress, then smoothly advances locally every frame
-   between polls (no snapping). Falls back to a self-contained
-   local simulation if the backend is unreachable.
-========================================================= */
-const FLIGHT_NUMBER = 'AI-865';
-const connStatus = document.getElementById('connStatus');
-const landsInEl = document.getElementById('landsIn');
-const flightLabel = document.getElementById('flightLabel');
-const flightRoute = document.getElementById('flightRoute');
-const flightSpeed = document.getElementById('flightSpeed');
-const flightDist = document.getElementById('flightDist');
-
-let durationSeconds = 135*60;
-let serverRemainingSeconds = 2*3600+6*60+23;
-let syncedAt = Date.now();
-let backendConnected = false;
-
-function fmtHMS(s){
-  s=Math.max(0,Math.floor(s));
-  const h=String(Math.floor(s/3600)).padStart(2,'0');
-  const m=String(Math.floor((s%3600)/60)).padStart(2,'0');
-  const sec=String(s%60).padStart(2,'0');
-  return `${h}:${m}:${sec}`;
-}
-
-async function pollFlight(){
-  try{
-    const res = await fetch(`/api/flights/${FLIGHT_NUMBER}/live`, { cache:'no-store' });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
-
-    durationSeconds = data.durationMinutes*60;
-    serverRemainingSeconds = data.remainingSeconds;
-    syncedAt = Date.now();
-    backendConnected = true;
-
-    flightLabel.textContent = `${(data.airline||'').toUpperCase()} · ${data.flightNumber}`;
-    flightRoute.textContent = `${data.origin.code} → ${data.destination.code}`;
-    flightSpeed.textContent = data.avgSpeedKmh;
-    flightDist.textContent = data.distanceKm;
-
-    connStatus.textContent = data.source === 'simulated' ? 'backend · simulated' : `backend · ${data.source}`;
-    connStatus.classList.add('live');
-  }catch(err){
-    backendConnected = false;
-    connStatus.textContent = 'backend offline · local simulation';
-    connStatus.classList.remove('live');
-    // keep advancing from whatever the last known state was
-  }
-}
-pollFlight();
-setInterval(pollFlight, 15000);
-
-function tickFlightDisplay(){
-  const localElapsed = (Date.now()-syncedAt)/1000;
-  const remaining = Math.max(0, serverRemainingSeconds - localElapsed);
-  const elapsed = durationSeconds - remaining;
-  const frac = durationSeconds > 0 ? elapsed/durationSeconds : 0;
-  renderPlaneAt(frac);
-  landsInEl.textContent = fmtHMS(remaining);
-}
-
-/* =========================================================
-   Study timer (counts up, independent of backend)
-========================================================= */
-const studyStart = Date.now();
-const studyTimeEl = document.getElementById('studyTime');
-const studyFillEl = document.getElementById('studyFill');
-function updateStudy(){
-  const elapsed = Math.floor((Date.now()-studyStart)/1000);
-  const h=Math.floor(elapsed/3600), m=Math.floor((elapsed%3600)/60), s=elapsed%60;
-  studyTimeEl.textContent = h>0
-    ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  const cycle=25*60;
-  studyFillEl.style.width = ((elapsed%cycle)/cycle*100).toFixed(1)+'%';
-}
-
-/* =========================================================
-   Pomodoro (counts down)
-========================================================= */
-const POMO_TOTAL=25*60;
-let pomoRemaining=POMO_TOTAL, pomoRunning=false;
-const pomoClock=document.getElementById('pomodoroClock');
-const pomoFill=document.getElementById('pomodoroFill');
-const pomoToggle=document.getElementById('pomodoroToggle');
-const pomoReset=document.getElementById('pomodoroReset');
-function renderPomo(){
-  const m=Math.floor(pomoRemaining/60), s=pomoRemaining%60;
-  pomoClock.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  pomoFill.style.width = (((POMO_TOTAL-pomoRemaining)/POMO_TOTAL)*100).toFixed(1)+'%';
-}
-renderPomo();
-pomoToggle.addEventListener('click', ()=>{
-  pomoRunning=!pomoRunning;
-  pomoToggle.textContent = pomoRunning?'Pause':'Start';
-});
-pomoReset.addEventListener('click', ()=>{
-  pomoRunning=false; pomoRemaining=POMO_TOTAL;
-  pomoToggle.textContent='Start'; renderPomo();
-});
-
-/* =========================================================
-   Master ticks
-========================================================= */
-setInterval(()=>{
-  updateStudy();
-  if(pomoRunning && pomoRemaining>0){
-    pomoRemaining--; renderPomo();
-    if(pomoRemaining===0){ pomoRunning=false; pomoToggle.textContent='Start'; }
-  }
-}, 1000);
-updateStudy();
-
-function frameLoop(t){
-  drawStars(t/1000);
-  drawLights(t/1000);
-  animateBirds(t);
-  animateParallax(t);
-  tickFlightDisplay();
-  requestAnimationFrame(frameLoop);
-}
-requestAnimationFrame(frameLoop);
-</script>
+  <!-- Three.js 3D WebGL Library from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Main Frontend Application Logic -->
+  <script src="app.js"></script>
 </body>
 </html>
