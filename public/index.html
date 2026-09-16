@@ -11,23 +11,108 @@
 <body>
 
   <!-- =====================================================================
-       3D WEBGL VIEWPORT & CINEMATIC BACKGROUND LAYERS
+       3D DYNAMIC MOVING WEBGL SCENE & VIEWPORT
   ===================================================================== -->
   <div class="viewport" id="viewport">
-    <!-- WebGL 3D Canvas (Three.js real-time night flight, wing & glowing city) -->
-    <canvas id="webglCanvas"></canvas>
+    <!-- WebGL 3D Canvas (Real-time 3D dynamic scrolling city, highways, wing & sunset) -->
+    <canvas id="webglCanvas" style="display: block;"></canvas>
 
-    <!-- Photo backdrop layer for High-Res Cinematic Photo Wing Mode -->
-    <div id="photoBgLayer" class="photo-bg-layer mode-wing"></div>
+    <!-- Real-Time Video Wallpaper Background Layer (Plays actual flight/study video instead of AI objects) -->
+    <div id="videoWallpaperContainer" class="video-wallpaper-container active" style="display: block;">
+      <video id="bgVideoPlayer" class="bg-video-element" autoplay loop muted playsinline preload="auto">
+        <source id="bgVideoSource" src="/assets/student-with-laptop-aesthetic-college-aesthetic-la-hd-auto-.mp4" type="video/mp4">
+      </video>
+      <div class="video-overlay-fx"></div>
+    </div>
 
-    <!-- Wing strobe light flare overlay (for photo blend mode) -->
-    <div id="wingStrobeOverlay" class="wing-strobe-flash"></div>
+    <!-- Optional Live Photo Wallpaper Container -->
+    <div id="liveWallpaperContainer" class="live-wallpaper-container" style="display: none;">
+      <img id="exactBgPhoto" class="exact-bg-photo" src="/assets/bg-sunset-wing.png" alt="Sunset Wing Night View" />
+      <canvas id="liveFxCanvas" class="live-fx-canvas"></canvas>
+    </div>
+
+    <!-- Photo backdrop layer for High-Res Cinematic Photo Mode -->
+    <div id="photoBgLayer" class="photo-bg-layer mode-sunset"></div>
+
+    <!-- Hidden File Input to load any custom video from PC -->
+    <input type="file" id="customVideoInput" accept="video/mp4,video/webm,video/mov,video/m4v,video/ogg" onchange="onCustomVideoFilePicked(event)" style="display: none;">
 
     <!-- Atmospheric gradient vignette -->
     <div class="atmosphere-vignette"></div>
 
-    <!-- Airliner Passenger Window Frame (Toggleable) -->
-    <div id="windowFrame" class="window-frame-overlay"></div>
+    <!-- Airliner Passenger Window Frame (Ultra-Realistic Dreamliner Passenger Window) -->
+    <div id="windowFrame" class="window-frame-overlay">
+      <div class="window-outer-cabin">
+        <svg class="window-svg-frame" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+          <defs>
+            <!-- Cutout mask revealing 3D world outside window -->
+            <mask id="windowHoleMask">
+              <rect width="1920" height="1080" fill="white" />
+              <rect x="70" y="24" width="1780" height="1032" rx="110" ry="110" fill="black" />
+            </mask>
+            
+            <!-- Sunset rim lighting on inner molded bevel -->
+            <linearGradient id="sunsetRimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ff7524" stop-opacity="0.75" />
+              <stop offset="35%" stop-color="#ff9938" stop-opacity="0.45" />
+              <stop offset="65%" stop-color="#38bdf8" stop-opacity="0.3" />
+              <stop offset="100%" stop-color="#141c2c" stop-opacity="0.9" />
+            </linearGradient>
+
+            <!-- Luxury Cabin Wall Matte Gradient -->
+            <linearGradient id="cabinWallGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#0c1220" />
+              <stop offset="50%" stop-color="#070c16" />
+              <stop offset="100%" stop-color="#04070e" />
+            </linearGradient>
+            
+            <!-- 3D Bevel Highlight Gradient -->
+            <linearGradient id="bevelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#2a3b56" />
+              <stop offset="45%" stop-color="#162236" />
+              <stop offset="100%" stop-color="#0b111c" />
+            </linearGradient>
+          </defs>
+
+          <!-- Outer Cabin Wall Covering -->
+          <rect width="1920" height="1080" fill="url(#cabinWallGrad)" mask="url(#windowHoleMask)" />
+
+          <!-- Outer Window Bevel Molding Frame -->
+          <rect x="52" y="10" width="1816" height="1060" rx="124" ry="124" fill="none" stroke="url(#bevelGrad)" stroke-width="24" opacity="0.95" />
+          
+          <!-- Mid Bevel Molding Line -->
+          <rect x="64" y="19" width="1792" height="1042" rx="116" ry="116" fill="none" stroke="#04070e" stroke-width="6" />
+
+          <!-- Inner Lip with Sunset Reflection Glow -->
+          <rect x="70" y="24" width="1780" height="1032" rx="110" ry="110" fill="none" stroke="url(#sunsetRimGrad)" stroke-width="4" />
+
+          <!-- Cabin Panel Rivets / Structural Marks -->
+          <circle cx="44" cy="200" r="3.5" fill="#1b283d" opacity="0.65" />
+          <circle cx="44" cy="540" r="3.5" fill="#1b283d" opacity="0.65" />
+          <circle cx="44" cy="880" r="3.5" fill="#1b283d" opacity="0.65" />
+          <circle cx="1876" cy="200" r="3.5" fill="#1b283d" opacity="0.65" />
+          <circle cx="1876" cy="540" r="3.5" fill="#1b283d" opacity="0.65" />
+          <circle cx="1876" cy="880" r="3.5" fill="#1b283d" opacity="0.65" />
+        </svg>
+
+        <!-- Window Glass Overlay with Glare, Shadows & Breather Hole -->
+        <div class="window-glass-pane">
+          <div class="window-inner-shadow"></div>
+          <div class="window-glass-glare"></div>
+          <div class="window-bleed-hole" title="Aviation Window Breather Hole">
+            <div class="bleed-hole-dot"></div>
+            <div class="bleed-hole-ring"></div>
+          </div>
+          <div class="window-dimmer-control" title="Electrochromic Window Tint Level">
+            <span class="dimmer-dot"></span>
+            <span class="dimmer-dot active"></span>
+            <span class="dimmer-dot"></span>
+            <span class="dimmer-dot"></span>
+            <span class="dimmer-dot"></span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Zen Mode Floating Restore Button (Visible only in Zen Wallpaper mode) -->
@@ -60,13 +145,22 @@
 
       <div class="hud-actions">
         <!-- Wallpaper Background Mode Selector -->
-        <button class="hud-btn" id="bgModeBtn" onclick="cycleWallpaperMode()" title="Switch 3D Scene / Photo Wing / Sunset Horizon">
+        <button class="hud-btn" id="bgModeBtn" onclick="cycleWallpaperMode()" title="Switch 3D Scene / Video / Photo Views">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="12 2 2 7 12 12 22 7 12 2"/>
             <polyline points="2 17 12 22 22 17"/>
             <polyline points="2 12 12 17 22 12"/>
           </svg>
-          <span id="bgModeLabel">3D Night World</span>
+          <span id="bgModeLabel">🎬 Live Video: Student with Laptop Aesthetic</span>
+        </button>
+
+        <!-- Choose Custom Video from PC Button -->
+        <button class="hud-btn" id="uploadVideoBtn" onclick="triggerCustomVideoUpload()" title="Load any video file from your computer (MP4/WebM)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 7l-7 5 7 5V7z"/>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+          <span>Choose Video File</span>
         </button>
 
         <!-- Window Frame Toggle -->
@@ -192,7 +286,7 @@
       </div>
 
       <!-- Digital Countdown Display -->
-      <div id="studyClockDisplay" class="study-clock-display">25:00</div>
+      <div id="studyClockDisplay" class="study-clock-display">00:25:00</div>
       <div id="sessionStatusSub" class="session-status-sub">Ready to Board · Flight Ready</div>
 
       <!-- Timer Control Action Buttons -->
@@ -212,6 +306,126 @@
         </button>
       </div>
     </footer>
+
+    <!-- 4. RIGHT BOTTOM SPOTIFY TRANSPARENT MUSIC BLOCK -->
+    <aside class="spotify-dock" id="spotifyDock">
+      <!-- Spotify Collapsible Playlist & Song Drawer -->
+      <div class="spotify-playlist-drawer" id="spotifyPlaylistDrawer">
+        <div class="drawer-header">
+          <div class="drawer-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#1db954">
+              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.485 17.306c-.215.352-.676.463-1.028.248-2.856-1.745-6.452-2.14-10.686-1.172-.403.092-.806-.157-.898-.56-.092-.403.157-.806.56-.898 4.643-1.06 8.622-.61 11.804 1.34.352.215.463.676.248 1.042zm1.464-3.26c-.27.441-.85.582-1.291.311-3.27-2.01-8.254-2.593-12.122-1.418-.496.15-1.022-.132-1.172-.628-.15-.496.132-1.022.628-1.172 4.417-1.341 9.907-.69 13.646 1.616.441.27.582.85.311 1.291zm.126-3.41c-3.921-2.328-10.38-2.543-14.125-1.405-.6.183-1.237-.156-1.42-.756-.183-.6.156-1.237.756-1.42 4.312-1.309 11.442-1.057 15.938 1.611.539.32.716 1.018.396 1.557-.32.539-1.018.716-1.545.413z"/>
+            </svg>
+            <span>Spotify Music</span>
+          </div>
+          <button class="drawer-close-btn" onclick="toggleSpotifyDrawer(false)" title="Close Drawer">&times;</button>
+        </div>
+
+        <!-- User Spotify Connected Profile Banner -->
+        <div class="spotify-user-banner">
+          <div class="user-avatar-disc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+          </div>
+          <div class="user-meta">
+            <span class="user-handle">Spotify User</span>
+            <span class="user-id">31v43wenm35ut6szupaw2hftrzx4</span>
+          </div>
+          <a href="https://open.spotify.com/user/31v43wenm35ut6szupaw2hftrzx4?si=d6741fd2b19a4f5b" target="_blank" rel="noopener noreferrer" class="user-profile-link" title="Open My Spotify Profile in new tab">
+            <span>Profile</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+          </a>
+        </div>
+
+        <!-- Playlist Category Tabs -->
+        <div class="playlist-category-chips" id="playlistCategoryChips">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- Song List in Selected Playlist -->
+        <div class="song-list-scroll" id="spotifySongList">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- Spotify Embed Frame Mode -->
+        <div class="spotify-embed-container" id="spotifyEmbedContainer" style="display: none;">
+          <iframe id="spotifyIframe" style="border-radius:12px" src="https://open.spotify.com/embed/user/31v43wenm35ut6szupaw2hftrzx4?utm_source=generator&theme=0" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+        </div>
+      </div>
+
+      <!-- Main Spotify Transparent Player Bar -->
+      <div class="spotify-player-card">
+        <div class="spotify-left-track">
+          <!-- Animated Disc / Album Art -->
+          <div class="spotify-art-wrap" onclick="toggleSpotifyDrawer()" title="Click to choose songs & playlists">
+            <div class="spotify-art-disc" id="spotifyArtDisc">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="#1db954">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.485 17.306c-.215.352-.676.463-1.028.248-2.856-1.745-6.452-2.14-10.686-1.172-.403.092-.806-.157-.898-.56-.092-.403.157-.806.56-.898 4.643-1.06 8.622-.61 11.804 1.34.352.215.463.676.248 1.042zm1.464-3.26c-.27.441-.85.582-1.291.311-3.27-2.01-8.254-2.593-12.122-1.418-.496.15-1.022-.132-1.172-.628-.15-.496.132-1.022.628-1.172 4.417-1.341 9.907-.69 13.646 1.616.441.27.582.85.311 1.291zm.126-3.41c-3.921-2.328-10.38-2.543-14.125-1.405-.6.183-1.237-.156-1.42-.756-.183-.6.156-1.237.756-1.42 4.312-1.309 11.442-1.057 15.938 1.611.539.32.716 1.018.396 1.557-.32.539-1.018.716-1.545.413z"/>
+              </svg>
+            </div>
+            <div class="sound-wave-bars" id="soundWaveBars">
+              <span class="bar b1"></span>
+              <span class="bar b2"></span>
+              <span class="bar b3"></span>
+            </div>
+          </div>
+
+          <!-- Track Meta -->
+          <div class="spotify-track-meta" onclick="toggleSpotifyDrawer()" title="Click to choose songs & playlists">
+            <div class="spotify-track-title" id="spotifyTrackTitle">Sunset Flight Lofi</div>
+            <div class="spotify-track-artist" id="spotifyTrackArtist">AeroFocus · Sunset Chill</div>
+          </div>
+        </div>
+
+        <!-- Controls: Choose Playlist, Back (Prev), Play/Pause, Next -->
+        <div class="spotify-controls">
+          <!-- Playlist Picker Button -->
+          <button class="sp-btn" onclick="toggleSpotifyDrawer()" title="Choose Playlist & Songs">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+              <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+            </svg>
+          </button>
+
+          <!-- Back / Previous Button -->
+          <button class="sp-btn" onclick="spotifyPrevTrack()" title="Previous Song (Back)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="19 20 9 12 19 4 19 20"/>
+              <line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"/>
+            </svg>
+          </button>
+
+          <!-- Play / Pause Button -->
+          <button class="sp-btn play-btn" id="spotifyPlayBtn" onclick="toggleSpotifyPlay()" title="Play / Pause">
+            <svg id="spPlayIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="6 4 20 12 6 20 6 4"/>
+            </svg>
+          </button>
+
+          <!-- Next Button -->
+          <button class="sp-btn" onclick="spotifyNextTrack()" title="Next Song">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 4 15 12 5 20 5 4"/>
+              <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Scrub / Progress Bar -->
+      <div class="spotify-progress-wrap">
+        <span class="sp-time" id="spCurrentTime">0:00</span>
+        <div class="sp-progress-bar" onclick="seekSpotify(event)">
+          <div class="sp-progress-filled" id="spProgressFilled"></div>
+        </div>
+        <span class="sp-time" id="spDurationTime">3:24</span>
+      </div>
+    </aside>
 
   </div>
 

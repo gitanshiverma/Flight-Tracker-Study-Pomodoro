@@ -1,9 +1,12 @@
 /* =========================================================================
-   AEROFOCUS · 3D Flight Tracker Pomodoro Study Engine
-   - Three.js 3D Night Flight, Procedural City, Glowing Highways, & Wing
-   - Straight Route Line Progress with Live Telemetry
+   AEROFOCUS · 3D Dynamic Moving Flight Tracker & Study Engine
+   - 3D Dynamic Moving Sunset Flight matching the Exact Sunset Wing & City View
+   - 3D Scrolling Night City Grid (50,000+ Lights), Flowing Highways & Warehouses
+   - Fiery Red-Orange Sunset Horizon, Metallic Specular Wing & Steady Red Beacon
+   - No White Blinking Lights (Clean, Calm Flight Immersion)
+   - Straight Route Line Progress with Moving Airplane & Live Telemetry
    - Study Duration Matcher & Flight Search
-   - Web Audio API Cabin Hum & Seatbelt Chimes
+   - Web Audio API Binaural Cabin Hum & Seatbelt Chimes
    ========================================================================= */
 
 // --- Global State ---
@@ -30,122 +33,185 @@ let timerInterval = null;
 
 let seatbeltFastened = true;
 let isZenMode = false;
-let currentWallpaperMode = 0; // 0: 3D Night, 1: Photo Wing, 2: Sunset Horizon
+let currentWallpaperMode = 0; // 0: Student with Laptop Aesthetic Video (Default)
 const wallpaperModes = [
-  { id: '3d-night', label: '3D Night World', photoClass: null },
-  { id: 'photo-wing', label: 'Photo Wing View', photoClass: 'mode-wing' },
-  { id: 'sunset', label: 'Sunset Cruise', photoClass: 'mode-sunset' }
+  { 
+    id: 'video-student-laptop', 
+    type: 'video', 
+    label: '🎬 Live Video: Student with Laptop Aesthetic', 
+    videoSrc: '/assets/student-with-laptop-aesthetic-college-aesthetic-la-hd-auto-.mp4' 
+  },
+  { 
+    id: 'video-night-study', 
+    type: 'video', 
+    label: '🎬 Live Video: Night Study Motivation', 
+    videoSrc: '/assets/video-night-study-motivation-don-t-give-up-ch-m-ng-hd-auto-.mp4' 
+  },
+  { 
+    id: 'video-stargazing', 
+    type: 'video', 
+    label: '🎬 Live Video: Stargazing Night Sky', 
+    videoSrc: '/assets/stargazing-through-the-sunroof-hits-different-car--hd-auto-.mp4' 
+  },
+  { 
+    id: 'video-trading-research', 
+    type: 'video', 
+    label: '🎬 Live Video: Technology & Research Aesthetic', 
+    videoSrc: '/assets/research-video-trading-aesthetic-video-technology--hd-auto-.mp4' 
+  },
+  { 
+    id: 'video-sky-chill', 
+    type: 'video', 
+    label: '🎬 Live Video: Sky & Landscape Chill', 
+    videoSrc: '/assets/nh-b-u-tr-i-m-nhi-p-nh-phong-c-nh-c-nh-chill-video-hd-auto-.mp4' 
+  },
+  { 
+    id: 'video-sunset-wing', 
+    type: 'video', 
+    label: '🎬 Live Video: Airplane Wing Sunset Flight', 
+    videoSrc: 'https://assets.mixkit.co/videos/42171/42171-720.mp4' 
+  },
+  { 
+    id: 'sunset-wing-exact', 
+    type: 'photo', 
+    label: '🖼️ Sunset Wing (Your Uploaded Exact Photo)', 
+    imgSrc: '/assets/bg-sunset-wing.png', 
+    nativeW: 391, 
+    nativeH: 669 
+  },
+  { 
+    id: '3d-sunset', 
+    type: '3d', 
+    label: '🌌 3D Dynamic Moving Sunset Flight (WebGL)', 
+    imgSrc: null 
+  },
+  { 
+    id: 'balcony-bridge', 
+    type: 'photo', 
+    label: '🌉 Balcony Bridge Night View Photo', 
+    imgSrc: '/assets/bg-balcony-bridge.png', 
+    nativeW: 357, 
+    nativeH: 523 
+  },
+  { 
+    id: 'sydney-highway', 
+    type: 'photo', 
+    label: '🛣️ City Highway Night View Photo', 
+    imgSrc: '/assets/bg-sydney-highway.png', 
+    nativeW: 847, 
+    nativeH: 460 
+  }
 ];
 
 /* =========================================================================
-   1. THREE.JS 3D ANIMATED SCENE (Real-Time Night Flight & Wing)
+   1. THREE.JS 3D DYNAMIC MOVING SUNSET FLIGHT ENGINE
 ========================================================================= */
 let scene, camera, renderer;
-let wingGroup, wingMesh, wingletMesh, strobeLight, navLightRed;
-let cityParticles, highwayHeadlights, highwayTaillights, buildingMeshes = [];
+let wingGroup, wingMesh, wingletMesh, navLightRed;
+let cityParticles, warehouseMeshes, stadiumMesh, highwayHeadlights, highwayTaillights;
 let cloudBillboards = [];
 let mouseX = 0, mouseY = 0, targetMouseX = 0, targetMouseY = 0;
 let clock = new THREE.Clock();
+let threeInitialized = false;
 
 function initThreeScene() {
+  if (threeInitialized) return;
   const canvas = document.getElementById('webglCanvas');
+  if (!canvas) return;
+
   const width = window.innerWidth;
   const height = window.innerHeight;
 
   scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x050713, 0.0006);
+  scene.fog = new THREE.FogExp2(0x060814, 0.00045);
 
-  camera = new THREE.PerspectiveCamera(52, width / height, 1, 6000);
-  // Position camera as looking out from passenger window backwards towards the wing and ground
-  camera.position.set(-60, 45, 110);
-  camera.lookAt(120, -10, -180);
+  camera = new THREE.PerspectiveCamera(54, width / height, 1, 7500);
+  camera.position.set(-58, 46, 120);
+  camera.lookAt(115, -4, -165);
 
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.toneMappingExposure = 1.25;
 
-  // --- Lighting ---
-  // Soft ambient moonlight
-  const ambientLight = new THREE.AmbientLight(0x1a263d, 0.7);
+  // --- Atmospheric & Sunset Lighting ---
+  const ambientLight = new THREE.AmbientLight(0x182236, 0.85);
   scene.add(ambientLight);
 
-  // Distant warm city up-glow
-  const cityGlowLight = new THREE.DirectionalLight(0xff9933, 0.4);
-  cityGlowLight.position.set(0, -100, -100);
+  // Fiery sunset directional light illuminating the top of the wing
+  const sunsetLight = new THREE.DirectionalLight(0xff5511, 1.4);
+  sunsetLight.position.set(-80, 70, -300);
+  scene.add(sunsetLight);
+
+  // Warm amber city up-glow reflecting from below
+  const cityGlowLight = new THREE.DirectionalLight(0xff9933, 0.7);
+  cityGlowLight.position.set(0, -220, -100);
   scene.add(cityGlowLight);
 
-  // Soft directional moonlight
-  const moonLight = new THREE.DirectionalLight(0xaad4ff, 0.8);
-  moonLight.position.set(100, 200, 100);
+  // Soft moonlight from high sky
+  const moonLight = new THREE.DirectionalLight(0x88bbff, 0.65);
+  moonLight.position.set(100, 260, 90);
   scene.add(moonLight);
 
-  // Build Scene Elements
+  // Build 3D World
   createStarfield();
-  createHorizonGlow();
-  createAirplaneWing();
-  createProceduralCity();
-  createHighways();
-  createSkyscrapers();
+  createSunsetHorizonBand();
+  createSunsetAirplaneWing();
+  createSprawlingNightCityGrid();
+  createWarehouseAndStadiumLandmarks();
+  createHighwayTrafficStreams();
   createVolumetricClouds();
 
-  // Mouse / Parallax Events
   window.addEventListener('mousemove', onMouseMove, { passive: true });
   window.addEventListener('resize', onWindowResize);
 
+  threeInitialized = true;
   animate3D();
 }
 
-/* --- Starfield --- */
+/* --- Starfield in Deep Sky Dome --- */
 function createStarfield() {
   const starGeo = new THREE.BufferGeometry();
-  const starCount = 1800;
+  const starCount = 2000;
   const positions = new Float32Array(starCount * 3);
   const colors = new Float32Array(starCount * 3);
 
   for (let i = 0; i < starCount; i++) {
-    // Upper hemisphere sky dome
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(Math.random() * 0.85 + 0.15);
-    const radius = 2800 + Math.random() * 400;
+    const radius = 3400 + Math.random() * 600;
 
     positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
-    positions[i * 3 + 1] = radius * Math.cos(phi) + 100;
+    positions[i * 3 + 1] = radius * Math.cos(phi) + 120;
     positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
 
-    // Subtle star color temperature (cool white, pale blue, amber)
-    const tint = Math.random();
-    if (tint > 0.8) {
-      colors[i * 3] = 0.8; colors[i * 3 + 1] = 0.9; colors[i * 3 + 2] = 1.0;
-    } else if (tint > 0.6) {
-      colors[i * 3] = 1.0; colors[i * 3 + 1] = 0.85; colors[i * 3 + 2] = 0.7;
+    const r = Math.random();
+    if (r > 0.75) {
+      colors[i * 3] = 0.85; colors[i * 3 + 1] = 0.92; colors[i * 3 + 2] = 1.0;
+    } else if (r > 0.5) {
+      colors[i * 3] = 1.0; colors[i * 3 + 1] = 0.88; colors[i * 3 + 2] = 0.72;
     } else {
-      colors[i * 3] = 0.95; colors[i * 3 + 1] = 0.95; colors[i * 3 + 2] = 1.0;
+      colors[i * 3] = 0.95; colors[i * 3 + 1] = 0.95; colors[i * 3 + 2] = 0.95;
     }
   }
 
   starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   starGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-  const starMat = new THREE.PointsMaterial({
-    size: 2.2,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.85
-  });
-
-  const starPoints = new THREE.Points(starGeo, starMat);
-  scene.add(starPoints);
+  const starMat = new THREE.PointsMaterial({ size: 2.2, vertexColors: true, transparent: true, opacity: 0.85 });
+  scene.add(new THREE.Points(starGeo, starMat));
 }
 
-/* --- Horizon Dusk / Twilight Glow --- */
-function createHorizonGlow() {
-  const glowGeo = new THREE.CylinderGeometry(2600, 2600, 350, 48, 1, true);
+/* --- Fiery Red-Orange Sunset / Twilight Horizon Band --- */
+function createSunsetHorizonBand() {
+  const glowGeo = new THREE.CylinderGeometry(3200, 3200, 480, 64, 1, true);
   const glowMat = new THREE.ShaderMaterial({
     uniforms: {
-      colorHorizon: { value: new THREE.Color(0xff6a1a) },
-      colorSky: { value: new THREE.Color(0x050818) }
+      colorSunsetRed: { value: new THREE.Color(0xff2a00) },
+      colorSunsetOrange: { value: new THREE.Color(0xff6b18) },
+      colorSunsetYellow: { value: new THREE.Color(0xffa825) },
+      colorSkyDark: { value: new THREE.Color(0x050815) }
     },
     vertexShader: `
       varying vec3 vPosition;
@@ -155,14 +221,23 @@ function createHorizonGlow() {
       }
     `,
     fragmentShader: `
-      uniform vec3 colorHorizon;
-      uniform vec3 colorSky;
+      uniform vec3 colorSunsetRed;
+      uniform vec3 colorSunsetOrange;
+      uniform vec3 colorSunsetYellow;
+      uniform vec3 colorSkyDark;
       varying vec3 vPosition;
       void main() {
-        float h = smoothstep(-150.0, 150.0, vPosition.y);
-        vec3 col = mix(colorHorizon, colorSky, h);
-        float alpha = (1.0 - abs(vPosition.y) / 175.0) * 0.38;
-        gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.45));
+        float h = smoothstep(-200.0, 200.0, vPosition.y);
+        vec3 col;
+        if (h < 0.35) {
+          col = mix(colorSunsetRed, colorSunsetOrange, h / 0.35);
+        } else if (h < 0.65) {
+          col = mix(colorSunsetOrange, colorSunsetYellow, (h - 0.35) / 0.30);
+        } else {
+          col = mix(colorSunsetYellow, colorSkyDark, (h - 0.65) / 0.35);
+        }
+        float alpha = (1.0 - abs(vPosition.y) / 240.0) * 0.62;
+        gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.70));
       }
     `,
     side: THREE.BackSide,
@@ -172,26 +247,24 @@ function createHorizonGlow() {
   });
 
   const horizonMesh = new THREE.Mesh(glowGeo, glowMat);
-  horizonMesh.position.set(0, -30, -500);
+  horizonMesh.position.set(0, -30, -700);
   scene.add(horizonMesh);
 }
 
-/* --- 3D Realistic Airplane Swept Wing & Sharklet --- */
-function createAirplaneWing() {
+/* --- 3D Swept Airliner Wing with Sunset Specular Glow --- */
+function createSunsetAirplaneWing() {
   wingGroup = new THREE.Group();
 
-  // Modern composite swept airliner wing (A350/B787 inspired)
-  // 1. Wing Main Body (Swept & tapered airfoil)
+  // 1. Tapered Swept Airfoil Wing Body (Matched to Photo)
   const wingShape = new THREE.Shape();
-  // Airfoil section profile
   wingShape.moveTo(0, 0);
-  wingShape.bezierCurveTo(8, 3.5, 30, 4.0, 75, 0.5);
-  wingShape.bezierCurveTo(90, -0.5, 95, -1.5, 98, -2.0);
-  wingShape.bezierCurveTo(75, -2.2, 30, -2.0, 0, 0);
+  wingShape.bezierCurveTo(10, 4.0, 36, 4.5, 82, 0.8);
+  wingShape.bezierCurveTo(94, -0.5, 98, -1.5, 102, -2.0);
+  wingShape.bezierCurveTo(75, -2.3, 30, -2.0, 0, 0);
 
   const extrudeSettings = {
-    steps: 24,
-    depth: 260,
+    steps: 28,
+    depth: 290,
     bevelEnabled: true,
     bevelThickness: 1.2,
     bevelSize: 0.8,
@@ -199,142 +272,131 @@ function createAirplaneWing() {
   };
 
   const wingGeometry = new THREE.ExtrudeGeometry(wingShape, extrudeSettings);
-  // Center and sweep geometry
   const pos = wingGeometry.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const z = pos.getZ(i);
-    const progress = z / 260; // 0 (root) to 1 (tip)
-
-    // Taper chord & thickness towards tip
-    const scale = 1.0 - progress * 0.65;
+    const progress = z / 290;
+    const scale = 1.0 - progress * 0.66;
     let x = pos.getX(i) * scale;
     let y = pos.getY(i) * scale;
-
-    // Sweep back along Z
-    x += progress * 140;
-    // Dihedral upward curve
-    y += Math.pow(progress, 1.8) * 28;
-
+    x += progress * 155;
+    y += Math.pow(progress, 1.8) * 32;
     pos.setXYZ(i, x, y, z);
   }
   wingGeometry.computeVertexNormals();
 
-  // Premium Airliner Metallic Composite Material
   const wingMaterial = new THREE.MeshStandardMaterial({
-    color: 0xe8edf5,
-    roughness: 0.28,
-    metalness: 0.65,
-    envMapIntensity: 1.2
+    color: 0xdde6f4,
+    roughness: 0.18,
+    metalness: 0.82,
+    emissive: 0x381206,
+    emissiveIntensity: 0.48,
+    envMapIntensity: 1.5
   });
 
   wingMesh = new THREE.Mesh(wingGeometry, wingMaterial);
   wingMesh.rotation.set(0.12, 2.1, -0.06);
-  wingMesh.position.set(-20, 15, 40);
+  wingMesh.position.set(-22, 16, 40);
   wingGroup.add(wingMesh);
 
-  // 2. Leading Edge Chrome Strip (Gleaming titanium de-icing slat edge)
-  const slatGeo = new THREE.CylinderGeometry(1.2, 0.4, 260, 12);
+  // 2. Titanium Leading-Edge Slat Chrome Strip (Reflecting sunset fiery orange)
+  const slatGeo = new THREE.CylinderGeometry(1.3, 0.4, 290, 14);
   const slatMat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
-    roughness: 0.1,
-    metalness: 0.95
+    roughness: 0.08,
+    metalness: 0.95,
+    emissive: 0x481605,
+    emissiveIntensity: 0.55
   });
   const slatMesh = new THREE.Mesh(slatGeo, slatMat);
   slatMesh.rotation.set(Math.PI / 2, 0, 0.42);
-  slatMesh.position.set(40, 22, -80);
+  slatMesh.position.set(44, 24, -88);
   wingGroup.add(slatMesh);
 
-  // 3. Flap Track Canoe Fairings (Aerodynamic pods under wing)
+  // 3. Flap Track Fairing Pods under wing
   for (let f = 0; f < 3; f++) {
-    const podGeo = new THREE.ConeGeometry(2.4 - f * 0.4, 38 - f * 6, 12);
-    const podMat = new THREE.MeshStandardMaterial({ color: 0xd4dce8, roughness: 0.35, metalness: 0.5 });
+    const podGeo = new THREE.ConeGeometry(2.5 - f * 0.4, 42 - f * 6, 12);
+    const podMat = new THREE.MeshStandardMaterial({ color: 0xd0dbe8, roughness: 0.3, metalness: 0.55 });
     const podMesh = new THREE.Mesh(podGeo, podMat);
     podMesh.rotation.set(Math.PI / 2 + 0.1, 0, 0.4);
-    const zOffset = 30 + f * 55;
-    podMesh.position.set(25 + f * 26, 4 + f * 4.5, 40 - zOffset);
+    const zOffset = 30 + f * 62;
+    podMesh.position.set(27 + f * 28, 4 + f * 5, 40 - zOffset);
     wingGroup.add(podMesh);
   }
 
-  // 4. Upturned Winglet / Sharklet
-  const sharkletGeo = new THREE.BoxGeometry(6, 32, 22);
+  // 4. Vertically Upturned Blended Sharklet / Winglet
+  const sharkletGeo = new THREE.BoxGeometry(6, 38, 26);
   const sharkletMat = new THREE.MeshStandardMaterial({
-    color: 0x0284c7, // Airline Cyan/Blue Accent
-    roughness: 0.25,
-    metalness: 0.6
+    color: 0x1e293b,
+    roughness: 0.22,
+    metalness: 0.65,
+    emissive: 0x220c04,
+    emissiveIntensity: 0.4
   });
   wingletMesh = new THREE.Mesh(sharkletGeo, sharkletMat);
-  wingletMesh.position.set(138, 48, -175);
+  wingletMesh.position.set(152, 54, -195);
   wingletMesh.rotation.set(0.2, 0.5, 0.45);
   wingGroup.add(wingletMesh);
 
-  // 5. Wingtip Strobe Light & Flare PointLight
-  strobeLight = new THREE.PointLight(0xffffff, 0, 900, 1.6);
-  strobeLight.position.set(142, 50, -178);
-  wingGroup.add(strobeLight);
-
-  // Small strobe glass bulb
-  const bulbGeo = new THREE.SphereGeometry(1.6, 16, 16);
-  const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const bulbMesh = new THREE.Mesh(bulbGeo, bulbMat);
-  bulbMesh.position.copy(strobeLight.position);
-  wingGroup.add(bulbMesh);
-
-  // 6. Red Port Navigation Beacon
-  navLightRed = new THREE.PointLight(0xff1a1a, 2.5, 80);
-  navLightRed.position.set(139, 47, -170);
+  // 5. Steady Soft Red Port Navigation Beacon (NO white blinking light)
+  navLightRed = new THREE.PointLight(0xff2222, 3.2, 130);
+  navLightRed.position.set(150, 52, -188);
   wingGroup.add(navLightRed);
 
-  const navBulbGeo = new THREE.SphereGeometry(1.2, 12, 12);
-  const navBulbMat = new THREE.MeshBasicMaterial({ color: 0xff2222 });
+  const navBulbGeo = new THREE.SphereGeometry(1.6, 12, 12);
+  const navBulbMat = new THREE.MeshBasicMaterial({ color: 0xff2828 });
   const navBulb = new THREE.Mesh(navBulbGeo, navBulbMat);
   navBulb.position.copy(navLightRed.position);
   wingGroup.add(navBulb);
 
-  // 7. Wing Inspection Floodlight (illuminating wing surface)
-  const wingFlood = new THREE.SpotLight(0xffffff, 1.8, 300, Math.PI / 4, 0.4, 1.2);
-  wingFlood.position.set(-40, 30, 80);
+  // 6. Sunset Wing Floodlight
+  const wingFlood = new THREE.SpotLight(0xff7733, 2.2, 340, Math.PI / 4, 0.4, 1.2);
+  wingFlood.position.set(-45, 34, 85);
   wingFlood.target = wingMesh;
   wingGroup.add(wingFlood);
 
   scene.add(wingGroup);
 }
 
-/* --- Procedural Glowing Night City Lights --- */
-function createProceduralCity() {
-  const cityCount = 20000;
+/* --- 3D Sprawling Night City Grid (42,000+ Points) --- */
+function createSprawlingNightCityGrid() {
+  const cityCount = 45000;
   const cityGeo = new THREE.BufferGeometry();
   const positions = new Float32Array(cityCount * 3);
   const colors = new Float32Array(cityCount * 3);
   const sizes = new Float32Array(cityCount);
 
   for (let i = 0; i < cityCount; i++) {
-    // Sprawling city plain below (Y: -350 to -450)
-    const x = (Math.random() - 0.5) * 3600;
-    const z = (Math.random() - 0.5) * 3600;
-    const y = -380 + (Math.sin(x * 0.005) + Math.cos(z * 0.005)) * 25;
+    const gridSpacing = 45;
+    let x = (Math.random() - 0.5) * 4400;
+    let z = (Math.random() - 0.5) * 4400;
+
+    if (Math.random() < 0.65) {
+      x = Math.round(x / gridSpacing) * gridSpacing + (Math.random() - 0.5) * 8;
+      z = Math.round(z / gridSpacing) * gridSpacing + (Math.random() - 0.5) * 8;
+    }
+
+    const y = -395 + (Math.sin(x * 0.0035) + Math.cos(z * 0.0035)) * 25;
 
     positions[i * 3] = x;
     positions[i * 3 + 1] = y;
     positions[i * 3 + 2] = z;
 
-    // Rich City Palette: Amber Sodium (60%), Golden Warm (25%), Cool LED White (10%), Neon Cyan/Pink (5%)
+    // Rich palette matching photo:
+    // 60% Warm Amber Sodium, 25% Golden Streetlights, 12% Cool White Warehouse/Commercial, 3% Cyan
     const r = Math.random();
     if (r < 0.60) {
-      // Sodium vapor orange/amber
-      colors[i * 3] = 1.0; colors[i * 3 + 1] = 0.55 + Math.random() * 0.2; colors[i * 3 + 2] = 0.08;
-      sizes[i] = 2.8 + Math.random() * 2.0;
-    } else if (r < 0.85) {
-      // Golden streetlights
-      colors[i * 3] = 1.0; colors[i * 3 + 1] = 0.82; colors[i * 3 + 2] = 0.35;
+      colors[i * 3] = 1.0; colors[i * 3 + 1] = 0.56 + Math.random() * 0.16; colors[i * 3 + 2] = 0.08;
       sizes[i] = 3.2 + Math.random() * 2.2;
-    } else if (r < 0.95) {
-      // Modern LED white
-      colors[i * 3] = 0.85; colors[i * 3 + 1] = 0.94; colors[i * 3 + 2] = 1.0;
-      sizes[i] = 2.5 + Math.random() * 1.8;
+    } else if (r < 0.85) {
+      colors[i * 3] = 1.0; colors[i * 3 + 1] = 0.82; colors[i * 3 + 2] = 0.35;
+      sizes[i] = 3.5 + Math.random() * 2.5;
+    } else if (r < 0.97) {
+      colors[i * 3] = 0.90; colors[i * 3 + 1] = 0.96; colors[i * 3 + 2] = 1.0;
+      sizes[i] = 4.2 + Math.random() * 2.8;
     } else {
-      // Commercial Neon Cyan / Magenta
       colors[i * 3] = 0.1; colors[i * 3 + 1] = 0.85; colors[i * 3 + 2] = 1.0;
-      sizes[i] = 3.8 + Math.random() * 2.0;
+      sizes[i] = 3.8 + Math.random() * 2.2;
     }
   }
 
@@ -342,18 +404,15 @@ function createProceduralCity() {
   cityGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   cityGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
-  // Custom Point Shader for soft glowing city dots
   const cityMat = new THREE.ShaderMaterial({
-    uniforms: {
-      time: { value: 0 }
-    },
+    uniforms: { time: { value: 0 } },
     vertexShader: `
       attribute float size;
       varying vec3 vColor;
       void main() {
         vColor = color;
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * (280.0 / -mvPosition.z);
+        gl_PointSize = size * (340.0 / -mvPosition.z);
         gl_Position = projectionMatrix * mvPosition;
       }
     `,
@@ -363,7 +422,7 @@ function createProceduralCity() {
         float d = length(gl_PointCoord - vec2(0.5));
         if (d > 0.5) discard;
         float strength = smoothstep(0.5, 0.0, d);
-        gl_FragColor = vec4(vColor, strength * 0.95);
+        gl_FragColor = vec4(vColor, strength * 0.98);
       }
     `,
     vertexColors: true,
@@ -376,124 +435,119 @@ function createProceduralCity() {
   scene.add(cityParticles);
 }
 
-/* --- Flowing Glowing Highway Arterials & Interchanges --- */
-function createHighways() {
-  const headCount = 4000;
-  const tailCount = 4000;
+/* --- Illuminated Warehouses & Green Sports Field Stadium --- */
+function createWarehouseAndStadiumLandmarks() {
+  warehouseMeshes = new THREE.Group();
 
-  // Headlights (Warm White / Yellow Streaming forward)
+  const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+  const warehouseMat = new THREE.MeshStandardMaterial({
+    color: 0x162438,
+    emissive: 0xd0e8ff,
+    emissiveIntensity: 0.65,
+    roughness: 0.2,
+    metalness: 0.8
+  });
+
+  for (let i = 0; i < 65; i++) {
+    const w = 40 + Math.random() * 60;
+    const h = 10 + Math.random() * 15;
+    const d = 30 + Math.random() * 45;
+    const x = (Math.random() - 0.5) * 3200;
+    const z = (Math.random() - 0.5) * 3400;
+
+    const mesh = new THREE.Mesh(boxGeo, warehouseMat);
+    mesh.scale.set(w, h, d);
+    mesh.position.set(x, -390 + h / 2, z);
+    warehouseMeshes.add(mesh);
+  }
+
+  // Sports Field / Stadium (Right side of photo)
+  const stadiumGeo = new THREE.PlaneGeometry(80, 50);
+  const stadiumMat = new THREE.MeshBasicMaterial({ color: 0x84cc16, side: THREE.DoubleSide });
+  stadiumMesh = new THREE.Mesh(stadiumGeo, stadiumMat);
+  stadiumMesh.rotation.x = -Math.PI / 2;
+  stadiumMesh.position.set(450, -388, -250);
+  warehouseMeshes.add(stadiumMesh);
+
+  const stadiumLight = new THREE.PointLight(0xa3e635, 4.2, 190);
+  stadiumLight.position.set(450, -370, -250);
+  warehouseMeshes.add(stadiumLight);
+
+  scene.add(warehouseMeshes);
+}
+
+/* --- Flowing 3D Highway Traffic Streams --- */
+function createHighwayTrafficStreams() {
+  const headCount = 6500;
+  const tailCount = 6500;
+
   const headGeo = new THREE.BufferGeometry();
   const headPos = new Float32Array(headCount * 3);
   const headColors = new Float32Array(headCount * 3);
 
-  // Taillights (Glowing Red Streaming opposite)
   const tailGeo = new THREE.BufferGeometry();
   const tailPos = new Float32Array(tailCount * 3);
   const tailColors = new Float32Array(tailCount * 3);
 
-  // Generate 8 curved highway ribbons
   for (let i = 0; i < headCount; i++) {
-    const highwayId = i % 8;
-    const t = (i / headCount) * Math.PI * 6;
-    const curveX = (highwayId - 3.5) * 420 + Math.sin(t * 0.4) * 220;
-    const curveZ = ((i / headCount) - 0.5) * 3600;
-    const y = -375;
+    const highwayId = i % 10;
+    const t = (i / headCount) * Math.PI * 8;
+    const curveX = (highwayId - 4.5) * 420 + Math.sin(t * 0.35) * 240;
+    const curveZ = ((i / headCount) - 0.5) * 4200;
+    const y = -388;
 
-    headPos[i * 3] = curveX - 4;
+    headPos[i * 3] = curveX - 5;
     headPos[i * 3 + 1] = y;
     headPos[i * 3 + 2] = curveZ;
 
     headColors[i * 3] = 1.0;
     headColors[i * 3 + 1] = 0.95;
-    headColors[i * 3 + 2] = 0.7;
+    headColors[i * 3 + 2] = 0.72;
 
-    tailPos[i * 3] = curveX + 4;
+    tailPos[i * 3] = curveX + 5;
     tailPos[i * 3 + 1] = y;
     tailPos[i * 3 + 2] = curveZ;
 
     tailColors[i * 3] = 1.0;
-    tailColors[i * 3 + 1] = 0.15;
-    tailColors[i * 3 + 2] = 0.1;
+    tailColors[i * 3 + 1] = 0.12;
+    tailColors[i * 3 + 2] = 0.08;
   }
 
   headGeo.setAttribute('position', new THREE.BufferAttribute(headPos, 3));
   headGeo.setAttribute('color', new THREE.BufferAttribute(headColors, 3));
-  const headMat = new THREE.PointsMaterial({ size: 4.5, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
-  highwayHeadlights = new THREE.Points(headGeo, headMat);
+  highwayHeadlights = new THREE.Points(headGeo, new THREE.PointsMaterial({ size: 4.8, vertexColors: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending }));
   scene.add(highwayHeadlights);
 
   tailGeo.setAttribute('position', new THREE.BufferAttribute(tailPos, 3));
   tailGeo.setAttribute('color', new THREE.BufferAttribute(tailColors, 3));
-  const tailMat = new THREE.PointsMaterial({ size: 4.0, vertexColors: true, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending });
-  highwayTaillights = new THREE.Points(tailGeo, tailMat);
+  highwayTaillights = new THREE.Points(tailGeo, new THREE.PointsMaterial({ size: 4.2, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
   scene.add(highwayTaillights);
 }
 
-/* --- 3D Skyscraper Clusters Below --- */
-function createSkyscrapers() {
-  const buildingGroup = new THREE.Group();
-  const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-  const buildingMat = new THREE.MeshStandardMaterial({
-    color: 0x081020,
-    roughness: 0.3,
-    metalness: 0.7,
-    emissive: 0x0f2038,
-    emissiveIntensity: 0.4
-  });
-
-  const count = 180;
-  for (let i = 0; i < count; i++) {
-    const cluster = i % 5;
-    const cx = (cluster - 2) * 600 + (Math.random() - 0.5) * 250;
-    const cz = (Math.random() - 0.5) * 2800;
-    const width = 20 + Math.random() * 25;
-    const height = 40 + Math.random() * 110;
-    const depth = 20 + Math.random() * 25;
-
-    const bMesh = new THREE.Mesh(boxGeo, buildingMat);
-    bMesh.scale.set(width, height, depth);
-    bMesh.position.set(cx, -380 + height / 2, cz);
-    buildingGroup.add(bMesh);
-    buildingMeshes.push(bMesh);
-
-    // Red obstruction beacon on top of tallest towers
-    if (height > 90) {
-      const beaconGeo = new THREE.SphereGeometry(1.8, 8, 8);
-      const beaconMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-      const beacon = new THREE.Mesh(beaconGeo, beaconMat);
-      beacon.position.set(cx, -380 + height + 2, cz);
-      buildingGroup.add(beacon);
-    }
-  }
-
-  scene.add(buildingGroup);
-}
-
-/* --- Volumetric Drifting Clouds Below Wing --- */
+/* --- Volumetric Drifting Clouds Beneath Wing --- */
 function createVolumetricClouds() {
-  const cloudCount = 35;
-  const cloudGeo = new THREE.SphereGeometry(70, 16, 12);
+  const cloudCount = 38;
+  const cloudGeo = new THREE.SphereGeometry(80, 16, 12);
   const cloudMat = new THREE.MeshLambertMaterial({
-    color: 0x18243b,
+    color: 0x221c2e,
     transparent: true,
-    opacity: 0.22,
+    opacity: 0.24,
     fog: true
   });
 
   for (let i = 0; i < cloudCount; i++) {
     const cloud = new THREE.Mesh(cloudGeo, cloudMat);
-    cloud.scale.set(1.8 + Math.random() * 1.5, 0.4 + Math.random() * 0.3, 1.2 + Math.random() * 1.0);
+    cloud.scale.set(2.0 + Math.random() * 1.5, 0.4 + Math.random() * 0.3, 1.3 + Math.random() * 1.0);
     cloud.position.set(
-      (Math.random() - 0.5) * 2200,
-      -120 + Math.random() * 90,
-      (Math.random() - 0.5) * 2400
+      (Math.random() - 0.5) * 2600,
+      -140 + Math.random() * 90,
+      (Math.random() - 0.5) * 2800
     );
     scene.add(cloud);
     cloudBillboards.push(cloud);
   }
 }
 
-/* --- Mouse Parallax Handler --- */
 function onMouseMove(e) {
   targetMouseX = (e.clientX / window.innerWidth - 0.5) * 2;
   targetMouseY = (e.clientY / window.innerHeight - 0.5) * 2;
@@ -509,6 +563,7 @@ function onWindowResize() {
 /* --- 3D Animation Render Loop --- */
 function animate3D() {
   requestAnimationFrame(animate3D);
+  if (currentWallpaperMode !== 0 || !renderer) return;
 
   const delta = clock.getDelta();
   const time = clock.getElapsedTime();
@@ -519,48 +574,28 @@ function animate3D() {
 
   camera.rotation.y = -0.65 + mouseX * 0.12;
   camera.rotation.x = -0.08 - mouseY * 0.08;
-  camera.position.x = -60 + mouseX * 12;
-  camera.position.y = 45 - mouseY * 8;
+  camera.position.x = -58 + mouseX * 14;
+  camera.position.y = 46 - mouseY * 9;
 
-  // 2. Realistic Cruising Aerodynamics & Gentle Wing Turbulence
+  // 2. Realistic Cruising Aerodynamics (NO BLINKING)
   if (wingGroup) {
-    // Gentle breathing roll (+/- 0.4 deg) and pitch wobble
     wingGroup.rotation.z = Math.sin(time * 0.8) * 0.012;
     wingGroup.rotation.x = Math.cos(time * 0.6) * 0.008;
     wingGroup.position.y = Math.sin(time * 1.2) * 1.2;
 
-    // Wingtip aeroelastic flex bounce
     if (wingletMesh) {
-      wingletMesh.position.y = 48 + Math.sin(time * 2.4) * 0.8;
+      wingletMesh.position.y = 54 + Math.sin(time * 2.4) * 0.8;
     }
   }
 
-  // 3. Aviation Double-Flash Strobe Light Cycle
-  // Cycle repeats every 1.35 seconds
-  const strobeCycle = time % 1.35;
-  let isFlash = false;
-  if ((strobeCycle > 0.0 && strobeCycle < 0.07) || (strobeCycle > 0.18 && strobeCycle < 0.25)) {
-    isFlash = true;
-  }
-
-  if (strobeLight) {
-    strobeLight.intensity = isFlash ? 14.0 : 0.0;
-  }
-
-  // Synchronize CSS Strobe Flash Flare for Photo Mode as well
-  const strobeOverlay = document.getElementById('wingStrobeOverlay');
-  if (strobeOverlay) {
-    strobeOverlay.style.opacity = isFlash ? '0.95' : '0.0';
-  }
-
-  // 4. Ground City & Highway Motion (Simulates 900 km/h flight speed)
-  const flightSpeed = 160 * delta;
+  // 3. Ground City & Highway Motion (880 km/h Flight Speed)
+  const flightSpeed = 175 * delta;
 
   if (cityParticles) {
     const pos = cityParticles.geometry.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       let z = pos.getZ(i) + flightSpeed;
-      if (z > 1600) z = -2000;
+      if (z > 1800) z = -2400;
       pos.setZ(i, z);
     }
     cityParticles.geometry.attributes.position.needsUpdate = true;
@@ -570,25 +605,34 @@ function animate3D() {
     const hPos = highwayHeadlights.geometry.attributes.position;
     const tPos = highwayTaillights.geometry.attributes.position;
     for (let i = 0; i < hPos.count; i++) {
-      let hz = hPos.getZ(i) + flightSpeed * 1.2;
-      if (hz > 1600) hz = -2000;
+      let hz = hPos.getZ(i) + flightSpeed * 1.25;
+      if (hz > 1800) hz = -2400;
       hPos.setZ(i, hz);
 
-      let tz = tPos.getZ(i) + flightSpeed * 0.8;
-      if (tz > 1600) tz = -2000;
+      let tz = tPos.getZ(i) + flightSpeed * 0.85;
+      if (tz > 1800) tz = -2400;
       tPos.setZ(i, tz);
     }
     highwayHeadlights.geometry.attributes.position.needsUpdate = true;
     highwayTaillights.geometry.attributes.position.needsUpdate = true;
   }
 
-  // 5. Drifting Clouds
+  if (warehouseMeshes) {
+    for (let i = 0; i < warehouseMeshes.children.length; i++) {
+      const b = warehouseMeshes.children[i];
+      b.position.z += flightSpeed;
+      if (b.position.z > 1800) {
+        b.position.z = -2400;
+      }
+    }
+  }
+
   for (let i = 0; i < cloudBillboards.length; i++) {
     const c = cloudBillboards[i];
     c.position.z += flightSpeed * 0.9;
-    if (c.position.z > 1400) {
-      c.position.z = -1800;
-      c.position.x = (Math.random() - 0.5) * 2200;
+    if (c.position.z > 1600) {
+      c.position.z = -2000;
+      c.position.x = (Math.random() - 0.5) * 2600;
     }
   }
 
@@ -616,7 +660,6 @@ function startCabinHum() {
   initAudioContext();
   if (cabinGainNode) return;
 
-  // 1. Synthesize Binaural Pink Noise (Jet Airflow rushing over fuselage)
   const bufferSize = audioCtx.sampleRate * 2;
   const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
   const output = noiseBuffer.getChannelData(0);
@@ -638,19 +681,17 @@ function startCabinHum() {
   whiteNoise.buffer = noiseBuffer;
   whiteNoise.loop = true;
 
-  // Biquad Lowpass filter to simulate sound muffled inside insulated cabin
   const cabinFilter = audioCtx.createBiquadFilter();
   cabinFilter.type = 'lowpass';
   cabinFilter.frequency.setValueAtTime(320, audioCtx.currentTime);
 
-  // 2. Dual Sub-Harmonic Oscillators for Jet Engine Turbine Drone
   const subOsc1 = audioCtx.createOscillator();
   subOsc1.type = 'sine';
-  subOsc1.frequency.setValueAtTime(54, audioCtx.currentTime); // 54 Hz rumble
+  subOsc1.frequency.setValueAtTime(54, audioCtx.currentTime);
 
   const subOsc2 = audioCtx.createOscillator();
   subOsc2.type = 'sine';
-  subOsc2.frequency.setValueAtTime(108, audioCtx.currentTime); // 108 Hz hum
+  subOsc2.frequency.setValueAtTime(108, audioCtx.currentTime);
 
   const subGain = audioCtx.createGain();
   subGain.gain.setValueAtTime(0.18, audioCtx.currentTime);
@@ -695,12 +736,10 @@ function toggleCabinAudio() {
   }
 }
 
-/* --- Authentic 2-Tone "Ding-Dong" Fasten Seatbelt Chime --- */
 function playSeatbeltChime() {
   initAudioContext();
   const now = audioCtx.currentTime;
 
-  // Tone 1: High Note (587.33 Hz / D5)
   const osc1 = audioCtx.createOscillator();
   const gain1 = audioCtx.createGain();
   osc1.type = 'sine';
@@ -713,7 +752,6 @@ function playSeatbeltChime() {
   osc1.start(now);
   osc1.stop(now + 0.85);
 
-  // Tone 2: Low Note (440 Hz / A4) after 300ms
   const osc2 = audioCtx.createOscillator();
   const gain2 = audioCtx.createGain();
   osc2.type = 'sine';
@@ -734,21 +772,19 @@ function playSeatbeltChime() {
 function updateFlightDisplay() {
   if (!activeFlight) return;
 
-  // Flight Identity
   document.getElementById('airlineTag').innerText = (activeFlight.airline || 'AIRLINE').toUpperCase();
   document.getElementById('flightNoDisplay').innerText = activeFlight.flightNumber || 'FLIGHT';
   document.getElementById('aircraftTypeDisplay').innerText = activeFlight.aircraft || 'Commercial Jetliner';
 
-  // Origin & Destination
   const orig = activeFlight.origin || {};
   const dest = activeFlight.destination || {};
   document.getElementById('originCode').innerText = orig.code || 'DEP';
   document.getElementById('originCity').innerText = orig.city ? `${orig.city}` : 'Origin';
-  document.getElementById('depTime').innerText = `STD: ${activeFlight.departureTimeUTC || '00:00'} UTC`;
+  document.getElementById('depTime').innerText = `STD: ${activeFlight.departureTimeUTC || '04:30'} UTC`;
 
   document.getElementById('destCode').innerText = dest.code || 'ARR';
   document.getElementById('destCity').innerText = dest.city ? `${dest.city}` : 'Destination';
-  document.getElementById('arrTime').innerText = `STA: ${activeFlight.arrivalTimeUTC || '00:00'} UTC`;
+  document.getElementById('arrTime').innerText = `STA: ${activeFlight.arrivalTimeUTC || '06:45'} UTC`;
 
   updateTelemetryAndProgress();
 }
@@ -758,13 +794,11 @@ function updateTelemetryAndProgress() {
   const progress = Math.min(1.0, sessionElapsedSeconds / total);
   const percent = Math.round(progress * 100);
 
-  // 1. Move straight progress bar and airplane icon
   const progressBar = document.getElementById('routeProgressBar');
   const planeMarker = document.getElementById('planeMarker');
   if (progressBar) progressBar.style.width = `${percent}%`;
   if (planeMarker) planeMarker.style.left = `${percent}%`;
 
-  // 2. Flight Phase & Telemetry Calculation
   let phase = 'CRUISING';
   let altitude = 38000;
   let speed = 495;
@@ -796,21 +830,25 @@ function updateTelemetryAndProgress() {
   document.getElementById('teleAltitude').innerHTML = `${altitude.toLocaleString()} <span>FT</span>`;
   document.getElementById('teleSpeed').innerHTML = `${speed} <span>KTS</span>`;
 
-  // Distance remaining
   const totalKm = activeFlight.distanceKm || 2000;
   const totalNM = Math.round(totalKm * 0.539957);
   const remNM = Math.max(0, Math.round(totalNM * (1.0 - progress)));
   document.getElementById('teleDistance').innerHTML = `${remNM.toLocaleString()} <span>NM</span>`;
 
-  // ETA Countdown
   const remainingSecs = Math.max(0, sessionTotalSeconds - sessionElapsedSeconds);
   document.getElementById('teleETA').innerText = formatHMS(remainingSecs);
 
-  // Digital Study Clock Display
-  document.getElementById('studyClockDisplay').innerText = formatMS(remainingSecs);
+  document.getElementById('studyClockDisplay').innerText = formatHMS(remainingSecs);
   document.getElementById('sessionStatusSub').innerText = isTimerRunning
     ? `Study In-Flight · ${percent}% Completed · Next Waypoint: WP${Math.min(5, Math.floor(progress * 4) + 1)}`
     : `Session Ready · Target Time: ${formatHMS(sessionTotalSeconds)}`;
+}
+
+function formatHMS(totalSeconds) {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 function formatMS(totalSeconds) {
@@ -819,17 +857,6 @@ function formatMS(totalSeconds) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function formatHMS(totalSeconds) {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  if (h > 0) {
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
-/* --- Study Timer Controls --- */
 function toggleTimer() {
   if (isTimerRunning) {
     pauseTimer();
@@ -1079,7 +1106,6 @@ function onSearchInputChanged() {
   }, 250);
 }
 
-/* --- Seatbelt Sign Toggle --- */
 function toggleSeatbeltSign() {
   seatbeltFastened = !seatbeltFastened;
   const badge = document.getElementById('seatbeltBadge');
@@ -1096,7 +1122,6 @@ function toggleSeatbeltSign() {
   }
 }
 
-/* --- Window Frame Toggle --- */
 function toggleWindowFrame() {
   const frame = document.getElementById('windowFrame');
   frame.classList.toggle('active');
@@ -1104,22 +1129,94 @@ function toggleWindowFrame() {
   btn.classList.toggle('primary', frame.classList.contains('active'));
 }
 
-/* --- Wallpaper Mode Switcher --- */
-function cycleWallpaperMode() {
-  currentWallpaperMode = (currentWallpaperMode + 1) % wallpaperModes.length;
-  const mode = wallpaperModes[currentWallpaperMode];
-
-  document.getElementById('bgModeLabel').innerText = mode.label;
+/* --- Wallpaper Mode Switcher & Video Wallpaper Controller --- */
+function applyWallpaperMode(mode) {
+  if (!mode) return;
+  const liveCont = document.getElementById('liveWallpaperContainer');
+  const exactImg = document.getElementById('exactBgPhoto');
+  const webglCanvas = document.getElementById('webglCanvas');
+  const videoCont = document.getElementById('videoWallpaperContainer');
+  const videoPlayer = document.getElementById('bgVideoPlayer');
   const photoLayer = document.getElementById('photoBgLayer');
+  const bgModeLabel = document.getElementById('bgModeLabel');
 
-  if (mode.photoClass) {
-    photoLayer.className = `photo-bg-layer ${mode.photoClass} active`;
-  } else {
-    photoLayer.className = 'photo-bg-layer';
+  if (bgModeLabel) bgModeLabel.innerText = mode.label;
+
+  if (mode.type === 'video') {
+    if (webglCanvas) webglCanvas.style.display = 'none';
+    if (liveCont) liveCont.style.display = 'none';
+    if (photoLayer) photoLayer.className = 'photo-bg-layer';
+
+    if (videoCont) {
+      videoCont.style.display = 'block';
+      videoCont.classList.add('active');
+    }
+    if (videoPlayer && mode.videoSrc) {
+      if (videoPlayer.src !== mode.videoSrc) {
+        videoPlayer.src = mode.videoSrc;
+      }
+      videoPlayer.play().catch(err => {
+        console.log('Video autoplay:', err);
+      });
+    }
+  } else if (mode.type === '3d') {
+    if (videoCont) {
+      videoCont.style.display = 'none';
+      videoCont.classList.remove('active');
+    }
+    if (videoPlayer) videoPlayer.pause();
+    if (liveCont) liveCont.style.display = 'none';
+    if (photoLayer) photoLayer.className = 'photo-bg-layer';
+    if (webglCanvas) webglCanvas.style.display = 'block';
+    if (!threeInitialized) initThreeScene();
+  } else if (mode.type === 'photo') {
+    if (videoCont) {
+      videoCont.style.display = 'none';
+      videoCont.classList.remove('active');
+    }
+    if (videoPlayer) videoPlayer.pause();
+    if (webglCanvas) webglCanvas.style.display = 'none';
+    if (photoLayer) photoLayer.className = 'photo-bg-layer';
+    if (liveCont) liveCont.style.display = 'block';
+    if (exactImg && mode.imgSrc) exactImg.src = mode.imgSrc;
   }
 }
 
-/* --- Pure Zen Mode (Full-Screen 3D Animated Wallpaper) --- */
+function cycleWallpaperMode() {
+  currentWallpaperMode = (currentWallpaperMode + 1) % wallpaperModes.length;
+  applyWallpaperMode(wallpaperModes[currentWallpaperMode]);
+}
+
+function triggerCustomVideoUpload() {
+  const input = document.getElementById('customVideoInput');
+  if (input) input.click();
+}
+
+function onCustomVideoFilePicked(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  const objectUrl = URL.createObjectURL(file);
+  const customMode = {
+    id: 'custom-user-video',
+    type: 'video',
+    label: `🎬 Custom Video: ${file.name.slice(0, 18)}...`,
+    videoSrc: objectUrl
+  };
+
+  const existingIdx = wallpaperModes.findIndex(m => m.id === 'custom-user-video');
+  if (existingIdx >= 0) {
+    wallpaperModes[existingIdx] = customMode;
+    currentWallpaperMode = existingIdx;
+  } else {
+    wallpaperModes.unshift(customMode);
+    currentWallpaperMode = 0;
+  }
+
+  applyWallpaperMode(customMode);
+}
+
+/* --- Pure Zen Mode (Full-Screen Animated Wallpaper) --- */
 function toggleZenMode(enable) {
   isZenMode = enable;
   const ui = document.getElementById('uiLayer');
@@ -1134,7 +1231,6 @@ function toggleZenMode(enable) {
   }
 }
 
-// Keyboard shortcuts (Space: Zen mode / Esc: Exit Zen mode)
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') {
     e.preventDefault();
@@ -1146,11 +1242,453 @@ window.addEventListener('keydown', (e) => {
 });
 
 /* =========================================================================
-   6. APP BOOTSTRAP
+   6. SPOTIFY TRANSPARENT MUSIC ENGINE & PLAYLIST CONTROLLER
+========================================================================= */
+const userSpotifyProfile = {
+  id: '31v43wenm35ut6szupaw2hftrzx4',
+  url: 'https://open.spotify.com/user/31v43wenm35ut6szupaw2hftrzx4?si=d6741fd2b19a4f5b',
+  embedUrl: 'https://open.spotify.com/embed/user/31v43wenm35ut6szupaw2hftrzx4?utm_source=generator&theme=0'
+};
+
+const spotifyPlaylists = [
+  {
+    id: 'user-profile',
+    name: '👤 My Spotify',
+    artist: 'User Profile · 31v43wenm35ut6szupaw2hftrzx4',
+    embedUrl: userSpotifyProfile.embedUrl,
+    profileUrl: userSpotifyProfile.url,
+    isEmbed: true,
+    songs: []
+  },
+  {
+    id: 'sunset-lofi',
+    name: '🌅 Sunset Flight',
+    artist: 'AeroFocus Chillhop',
+    bpm: 78,
+    scale: [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33],
+    songs: [
+      { title: 'Golden Hour Cruising', artist: 'AeroFocus Sunset', durationSec: 204 },
+      { title: 'FL380 Above Clouds', artist: 'Skyline Lofi Beats', durationSec: 188 },
+      { title: 'Wingtip Amber Glow', artist: 'Dreamliner Sessions', durationSec: 225 },
+      { title: 'Twilight Descent', artist: 'Cabin Chillhop', durationSec: 210 }
+    ]
+  },
+  {
+    id: 'tokyo-synth',
+    name: '🌃 Tokyo Night Synth',
+    artist: 'Night Flight Wave',
+    bpm: 84,
+    scale: [220.00, 261.63, 293.66, 329.63, 392.00, 440.00, 523.25],
+    songs: [
+      { title: 'Tokyo Expressway Drift', artist: 'Shinjuku Midnight', durationSec: 195 },
+      { title: 'Haneda Runway 34L', artist: 'AeroWave 80s', durationSec: 216 },
+      { title: 'Neon Horizon Approach', artist: 'Synth Cruiser', durationSec: 240 },
+      { title: 'Metropolis Starlight', artist: 'Nightliner', durationSec: 182 }
+    ]
+  },
+  {
+    id: 'cabin-focus',
+    name: '✈️ Cabin Focus',
+    artist: 'Binaural Deep Study',
+    bpm: 64,
+    scale: [196.00, 246.94, 293.66, 369.99, 440.00, 493.88],
+    songs: [
+      { title: 'Binaural 787 Cabin Tone', artist: 'Deep Focus Aero', durationSec: 240 },
+      { title: 'Sub-Altitude Alpha State', artist: 'Mind Altitude', durationSec: 265 },
+      { title: 'Transatlantic Night Cross', artist: 'Jetliner Sleep & Study', durationSec: 300 },
+      { title: 'Flight Deck Calm', artist: 'AeroFocus Ambient', durationSec: 215 }
+    ]
+  },
+  {
+    id: 'cloud-rain',
+    name: '🌧️ Rain Over Clouds',
+    artist: 'Cozy Jetliner Lofi',
+    bpm: 72,
+    scale: [261.63, 311.13, 349.23, 392.00, 466.16, 523.25],
+    songs: [
+      { title: 'Window Raindrop Beats', artist: 'Storm Cloud Lofi', durationSec: 198 },
+      { title: 'Cloudburst Departure', artist: 'Wet Runway Beats', durationSec: 212 },
+      { title: 'Monsoon Above 30,000ft', artist: 'Gentle Thunder Chill', durationSec: 245 },
+      { title: 'Misty Touchdown at Dawn', artist: 'Cozy Jetliner', durationSec: 190 }
+    ]
+  },
+  {
+    id: 'sky-jazz',
+    name: '☕ Sky Lounge Jazz',
+    artist: 'First Class Lounge',
+    bpm: 80,
+    scale: [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88],
+    songs: [
+      { title: 'First Class Espresso', artist: 'Sky Lounge Trio', durationSec: 214 },
+      { title: 'Airport Velvet Chords', artist: 'Runway Jazz Club', durationSec: 232 },
+      { title: 'Midnight Boarding Gate', artist: 'Gate 42 Jazz', durationSec: 195 },
+      { title: 'Terminal Smooth Sunset', artist: 'Aviation Quartet', durationSec: 250 }
+    ]
+  }
+];
+
+let currentPlaylistIdx = 0;
+let currentSongIdx = 0;
+let isSpotifyPlaying = false;
+let spotifyElapsedSecs = 0;
+let spotifyTicker = null;
+let lofiTimeoutId = null;
+let lofiMasterGain = null;
+let isDrawerOpen = false;
+
+function initSpotifyUI() {
+  renderPlaylistChips();
+  renderSongList();
+  updateSpotifyMeta();
+}
+
+function renderPlaylistChips() {
+  const container = document.getElementById('playlistCategoryChips');
+  if (!container) return;
+
+  let html = '';
+  spotifyPlaylists.forEach((pl, idx) => {
+    const isActive = idx === currentPlaylistIdx;
+    html += `<button class="pl-chip ${isActive ? 'active' : ''}" onclick="selectSpotifyPlaylist(${idx})">${pl.name}</button>`;
+  });
+  container.innerHTML = html;
+}
+
+function renderSongList() {
+  const container = document.getElementById('spotifySongList');
+  const embedCont = document.getElementById('spotifyEmbedContainer');
+  if (!container) return;
+
+  const currentPl = spotifyPlaylists[currentPlaylistIdx];
+
+  if (currentPl.isEmbed) {
+    container.style.display = 'none';
+    if (embedCont) embedCont.style.display = 'block';
+    return;
+  }
+
+  if (embedCont) embedCont.style.display = 'none';
+  container.style.display = 'flex';
+
+  let html = '';
+  currentPl.songs.forEach((song, sIdx) => {
+    const isActive = sIdx === currentSongIdx;
+    const durStr = formatTrackDuration(song.durationSec);
+    html += `
+      <div class="song-item ${isActive ? 'active' : ''}" onclick="selectSpotifySong(${sIdx})">
+        <div class="song-info">
+          <div class="song-title-row">
+            ${isActive && isSpotifyPlaying ? '<span>▶</span>' : ''}
+            <span>${song.title}</span>
+          </div>
+          <div class="song-artist-row">${song.artist}</div>
+        </div>
+        <div class="song-dur">${durStr}</div>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+function updateSpotifyMeta() {
+  const currentPl = spotifyPlaylists[currentPlaylistIdx];
+  if (!currentPl) return;
+
+  const titleEl = document.getElementById('spotifyTrackTitle');
+  const artistEl = document.getElementById('spotifyTrackArtist');
+  const durEl = document.getElementById('spDurationTime');
+
+  if (currentPl.isEmbed) {
+    if (titleEl) titleEl.innerText = currentPl.name;
+    if (artistEl) artistEl.innerText = currentPl.artist;
+    if (durEl) durEl.innerText = '--:--';
+    return;
+  }
+
+  const song = currentPl.songs[currentSongIdx] || currentPl.songs[0];
+  if (song) {
+    if (titleEl) titleEl.innerText = song.title;
+    if (artistEl) artistEl.innerText = `${song.artist} · ${currentPl.name.replace(/^[^\s]+\s/, '')}`;
+    if (durEl) durEl.innerText = formatTrackDuration(song.durationSec);
+  }
+}
+
+function formatTrackDuration(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function toggleSpotifyDrawer(forceState) {
+  isDrawerOpen = typeof forceState === 'boolean' ? forceState : !isDrawerOpen;
+  const drawer = document.getElementById('spotifyPlaylistDrawer');
+  if (drawer) {
+    drawer.classList.toggle('open', isDrawerOpen);
+  }
+}
+
+function selectSpotifyPlaylist(idx) {
+  currentPlaylistIdx = idx;
+  currentSongIdx = 0;
+  spotifyElapsedSecs = 0;
+  renderPlaylistChips();
+  renderSongList();
+  updateSpotifyMeta();
+
+  const currentPl = spotifyPlaylists[idx];
+  const iframe = document.getElementById('spotifyIframe');
+  if (currentPl.isEmbed && iframe && currentPl.embedUrl) {
+    iframe.src = currentPl.embedUrl;
+  }
+
+  if (isSpotifyPlaying && !currentPl.isEmbed) {
+    stopLofiSynthesizer();
+    startLofiSynthesizer();
+  }
+}
+
+function selectSpotifySong(sIdx) {
+  currentSongIdx = sIdx;
+  spotifyElapsedSecs = 0;
+  renderSongList();
+  updateSpotifyMeta();
+  if (!isSpotifyPlaying) {
+    toggleSpotifyPlay();
+  } else {
+    stopLofiSynthesizer();
+    startLofiSynthesizer();
+  }
+}
+
+function toggleSpotifyPlay() {
+  isSpotifyPlaying = !isSpotifyPlaying;
+  const playBtn = document.getElementById('spotifyPlayBtn');
+  const playIcon = document.getElementById('spPlayIcon');
+  const disc = document.getElementById('spotifyArtDisc');
+  const waveBars = document.getElementById('soundWaveBars');
+
+  if (isSpotifyPlaying) {
+    initAudioContext();
+    if (playIcon) playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+    if (disc) disc.classList.add('spinning');
+    if (waveBars) waveBars.classList.add('active');
+
+    startLofiSynthesizer();
+    startSpotifyTicker();
+  } else {
+    if (playIcon) playIcon.innerHTML = '<polygon points="6 4 20 12 6 20 6 4"/>';
+    if (disc) disc.classList.remove('spinning');
+    if (waveBars) waveBars.classList.remove('active');
+
+    stopLofiSynthesizer();
+    stopSpotifyTicker();
+  }
+  renderSongList();
+}
+
+function spotifyNextTrack() {
+  const currentPl = spotifyPlaylists[currentPlaylistIdx];
+  if (!currentPl || currentPl.isEmbed || !currentPl.songs.length) return;
+
+  currentSongIdx = (currentSongIdx + 1) % currentPl.songs.length;
+  spotifyElapsedSecs = 0;
+  updateSpotifyMeta();
+  renderSongList();
+
+  if (isSpotifyPlaying) {
+    stopLofiSynthesizer();
+    startLofiSynthesizer();
+  }
+}
+
+function spotifyPrevTrack() {
+  const currentPl = spotifyPlaylists[currentPlaylistIdx];
+  if (!currentPl || currentPl.isEmbed || !currentPl.songs.length) return;
+
+  if (spotifyElapsedSecs > 3) {
+    spotifyElapsedSecs = 0;
+  } else {
+    currentSongIdx = (currentSongIdx - 1 + currentPl.songs.length) % currentPl.songs.length;
+    spotifyElapsedSecs = 0;
+  }
+
+  updateSpotifyMeta();
+  renderSongList();
+
+  if (isSpotifyPlaying) {
+    stopLofiSynthesizer();
+    startLofiSynthesizer();
+  }
+}
+
+function startSpotifyTicker() {
+  stopSpotifyTicker();
+  spotifyTicker = setInterval(() => {
+    const currentPl = spotifyPlaylists[currentPlaylistIdx];
+    if (!currentPl || currentPl.isEmbed || !currentPl.songs.length) return;
+
+    const currentSong = currentPl.songs[currentSongIdx];
+    const totalSecs = currentSong.durationSec || 180;
+
+    spotifyElapsedSecs++;
+    if (spotifyElapsedSecs >= totalSecs) {
+      spotifyNextTrack();
+      return;
+    }
+
+    const curTimeEl = document.getElementById('spCurrentTime');
+    const filledEl = document.getElementById('spProgressFilled');
+
+    if (curTimeEl) curTimeEl.innerText = formatTrackDuration(spotifyElapsedSecs);
+    if (filledEl) {
+      const pct = (spotifyElapsedSecs / totalSecs) * 100;
+      filledEl.style.width = `${pct}%`;
+    }
+  }, 1000);
+}
+
+function stopSpotifyTicker() {
+  if (spotifyTicker) {
+    clearInterval(spotifyTicker);
+    spotifyTicker = null;
+  }
+}
+
+function seekSpotify(e) {
+  const currentPl = spotifyPlaylists[currentPlaylistIdx];
+  if (!currentPl || currentPl.isEmbed || !currentPl.songs.length) return;
+
+  const currentSong = currentPl.songs[currentSongIdx];
+  const totalSecs = currentSong.durationSec || 180;
+
+  const bar = e.currentTarget;
+  const rect = bar.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+
+  spotifyElapsedSecs = Math.floor(ratio * totalSecs);
+
+  const curTimeEl = document.getElementById('spCurrentTime');
+  const filledEl = document.getElementById('spProgressFilled');
+  if (curTimeEl) curTimeEl.innerText = formatTrackDuration(spotifyElapsedSecs);
+  if (filledEl) filledEl.style.width = `${ratio * 100}%`;
+}
+
+/* --- Web Audio API Relaxing Lofi Chord Synthesizer --- */
+let lofiStep = 0;
+function startLofiSynthesizer() {
+  initAudioContext();
+  if (!lofiMasterGain) {
+    lofiMasterGain = audioCtx.createGain();
+    lofiMasterGain.gain.setValueAtTime(0.22, audioCtx.currentTime);
+    lofiMasterGain.connect(audioCtx.destination);
+  }
+
+  const currentPl = spotifyPlaylists[currentPlaylistIdx];
+  if (currentPl.isEmbed) return;
+
+  const bpm = currentPl.bpm || 75;
+  const stepIntervalMs = (60 / bpm) * 500; // eighth notes
+
+  function scheduleLofiStep() {
+    if (!isSpotifyPlaying) return;
+
+    const scale = currentPl.scale || [261.63, 293.66, 329.63, 392.00, 440.00];
+    const now = audioCtx.currentTime;
+
+    // 1. Mellow Electric Piano Chord note
+    if (lofiStep % 2 === 0) {
+      const noteIdx = (lofiStep % 4) * 2 % scale.length;
+      const freq = scale[noteIdx];
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+
+      osc.type = lofiStep % 4 === 0 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(750, now);
+      filter.Q.setValueAtTime(1.5, now);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + (stepIntervalMs / 1000) * 1.8);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(lofiMasterGain);
+
+      osc.start(now);
+      osc.stop(now + (stepIntervalMs / 1000) * 2);
+    }
+
+    // 2. Warm Bass Note on Beat 1 and 5
+    if (lofiStep % 8 === 0 || lofiStep % 8 === 4) {
+      const bassOsc = audioCtx.createOscillator();
+      const bassGain = audioCtx.createGain();
+      bassOsc.type = 'sine';
+      const rootFreq = (scale[0] || 261.63) / 2;
+      bassOsc.frequency.setValueAtTime(rootFreq, now);
+
+      bassGain.gain.setValueAtTime(0.24, now);
+      bassGain.gain.exponentialRampToValueAtTime(0.001, now + (stepIntervalMs / 1000) * 3);
+
+      bassOsc.connect(bassGain);
+      bassGain.connect(lofiMasterGain);
+
+      bassOsc.start(now);
+      bassOsc.stop(now + (stepIntervalMs / 1000) * 3.2);
+    }
+
+    // 3. Subtle Lofi Vinyl / Tape Snare Click
+    if (lofiStep % 4 === 2) {
+      const bufferSize = audioCtx.sampleRate * 0.05;
+      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.08;
+      }
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const nFilter = audioCtx.createBiquadFilter();
+      nFilter.type = 'bandpass';
+      nFilter.frequency.setValueAtTime(1800, now);
+      const nGain = audioCtx.createGain();
+      nGain.gain.setValueAtTime(0.15, now);
+      nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+      noise.connect(nFilter);
+      nFilter.connect(nGain);
+      nGain.connect(lofiMasterGain);
+
+      noise.start(now);
+    }
+
+    lofiStep = (lofiStep + 1) % 32;
+    lofiTimeoutId = setTimeout(scheduleLofiStep, stepIntervalMs);
+  }
+
+  scheduleLofiStep();
+}
+
+function stopLofiSynthesizer() {
+  if (lofiTimeoutId) {
+    clearTimeout(lofiTimeoutId);
+    lofiTimeoutId = null;
+  }
+}
+
+/* =========================================================================
+   7. APP BOOTSTRAP
 ========================================================================= */
 window.addEventListener('DOMContentLoaded', () => {
   initThreeScene();
+  applyWallpaperMode(wallpaperModes[currentWallpaperMode]);
   loadAirports();
   fetchAndRenderFlights({ durationMinutes: 135 });
   updateFlightDisplay();
+  initSpotifyUI();
 });
+
