@@ -25,6 +25,12 @@
       <div class="video-overlay-fx"></div>
     </div>
 
+    <!-- YouTube Live / Video Link Wallpaper Background Layer -->
+    <div id="youtubeWallpaperContainer" class="youtube-wallpaper-container" style="display: none;">
+      <iframe id="ytBgIframe" class="yt-bg-iframe" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      <div class="video-overlay-fx"></div>
+    </div>
+
     <!-- Optional Live Photo Wallpaper Container -->
     <div id="liveWallpaperContainer" class="live-wallpaper-container" style="display: none;">
       <img id="exactBgPhoto" class="exact-bg-photo" src="/assets/bg-sunset-wing.png" alt="Sunset Wing Night View" />
@@ -141,6 +147,10 @@
           <span class="seatbelt-icon">🔔</span>
           <span id="seatbeltText">SEATBELT ON</span>
         </div>
+        <div id="fr24LiveBadge" class="fr24-live-pill" onclick="openFlightSearchModal('radar')" title="Connected to Flightradar24 Live Airspace (28.65, 77.23)">
+          <span class="pulse-dot"></span>
+          <span id="fr24BadgeText">FR24 LIVE FEED</span>
+        </div>
       </div>
 
       <div class="hud-actions">
@@ -154,13 +164,13 @@
           <span id="bgModeLabel">🎬 Live Video: Student with Laptop Aesthetic</span>
         </button>
 
-        <!-- Choose Custom Video from PC Button -->
-        <button class="hud-btn" id="uploadVideoBtn" onclick="triggerCustomVideoUpload()" title="Load any video file from your computer (MP4/WebM)">
+        <!-- Add YouTube / Video Link Wallpaper Button -->
+        <button class="hud-btn" id="addVideoLinkBtn" onclick="openVideoLinkModal()" title="Add YouTube or Video Link as live wallpaper">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M23 7l-7 5 7 5V7z"/>
-            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
           </svg>
-          <span>Choose Video File</span>
+          <span>Add Video Link</span>
         </button>
 
         <!-- Window Frame Toggle -->
@@ -207,6 +217,7 @@
           <span id="airlineTag" class="airline-tag">EMIRATES</span>
           <span id="flightNoDisplay" class="flight-no">EK 501</span>
           <span id="aircraftTypeDisplay" class="aircraft-type">Boeing 777-300ER</span>
+          <span id="flightSourceBadge" class="flight-source-badge">⚡ Flightradar24 Live</span>
         </div>
         <div id="flightPhaseTag" class="flight-phase-tag">
           <span class="radar-dot"></span>
@@ -272,6 +283,10 @@
         <div class="tele-item">
           <span class="tele-label">Estimated ETE</span>
           <span id="teleETA" class="tele-val">02:15:00</span>
+        </div>
+        <div class="tele-item">
+          <span class="tele-label">Live Position</span>
+          <span id="teleCoords" class="tele-val" style="font-size: 13px;">28.65°N, 77.23°E</span>
         </div>
       </div>
     </section>
@@ -446,7 +461,13 @@
       </div>
 
       <div class="modal-tabs-bar">
-        <button class="modal-tab-btn active" id="modalTabDuration" onclick="switchModalTab('duration')">
+        <button class="modal-tab-btn active" id="modalTabRadar" onclick="switchModalTab('radar')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/><circle cx="12" cy="12" r="3" fill="#38bdf8"/>
+          </svg>
+          <span>⚡ Live Airspace (Flightradar24)</span>
+        </button>
+        <button class="modal-tab-btn" id="modalTabDuration" onclick="switchModalTab('duration')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
           </svg>
@@ -456,20 +477,34 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
           </svg>
-          <span>From &rarr; To Airport Route</span>
+          <span>From &rarr; To Route</span>
         </button>
         <button class="modal-tab-btn" id="modalTabAll" onclick="switchModalTab('all')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
             <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
           </svg>
-          <span>All Flights Database</span>
+          <span>Catalog Database</span>
         </button>
       </div>
 
       <div class="modal-body-content">
+        <!-- Tab 0: Live Flightradar24 Airspace -->
+        <div id="tabContentRadar">
+          <div class="radar-banner">
+            <div class="radar-banner-left">
+              <span class="pulse-dot"></span>
+              <div>
+                <div class="radar-banner-title">Live Flightradar24 Airspace (28.65°N, 77.23°E)</div>
+                <div class="radar-banner-sub" id="radarBannerSub">Real-Time Airborne Flights in Delhi / India Corridor · Zoom 6</div>
+              </div>
+            </div>
+            <button class="pill-btn" onclick="fetchAndRenderRadarFlights()" style="background: rgba(56,189,248,0.2); border-color: rgba(56,189,248,0.4); color: #38bdf8;">🔄 Refresh Live Feed</button>
+          </div>
+        </div>
+
         <!-- Tab 1: Duration Matcher -->
-        <div id="tabContentDuration">
+        <div id="tabContentDuration" style="display: none;">
           <div class="duration-input-box">
             <div class="duration-input-label">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -527,6 +562,67 @@
         <!-- Flight results listing grid -->
         <div id="flightResultsGrid" class="flight-results-grid">
           <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       ADD YOUTUBE / VIDEO LINK BACKGROUND MODAL
+  ===================================================================== -->
+  <div id="videoLinkModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 560px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+          <span>Add Custom Video Link (YouTube / MP4)</span>
+        </div>
+        <button class="modal-close" onclick="closeVideoLinkModal()">&times;</button>
+      </div>
+
+      <div class="modal-body-content" style="padding: 20px 24px;">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+          Paste any <strong>YouTube video / livestream URL</strong> (or direct MP4 link) to play seamlessly as your full-screen animated study wallpaper.
+        </p>
+
+        <div style="margin-bottom: 18px;">
+          <label for="customVideoLinkInput" style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.04em;">
+            YouTube URL or Video Link:
+          </label>
+          <input type="text" id="customVideoLinkInput" placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..." 
+                 style="width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(56,189,248,0.35); border-radius: 12px; padding: 12px 14px; color: #fff; font-size: 13px; outline: none; font-family: 'JetBrains Mono', monospace;"
+                 onkeydown="if(event.key === 'Enter') applyCustomVideoLink()">
+        </div>
+
+        <div style="margin-bottom: 22px;">
+          <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; letter-spacing: 0.04em;">
+            ✨ Recommended Aesthetic YouTube Streams & Views:
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="pill-btn" style="text-align: left; justify-content: flex-start; padding: 10px 14px; width: 100%; font-size: 12px;" onclick="setPresetYouTube('jfKfPfyJRdk', 'Lofi Girl · Relaxing Study Beats')">
+              🎧 <strong>Lofi Girl</strong> · 24/7 Relaxing Study Beats & Aesthetic Room
+            </button>
+            <button class="pill-btn" style="text-align: left; justify-content: flex-start; padding: 10px 14px; width: 100%; font-size: 12px;" onclick="setPresetYouTube('K3R3PfxFp-k', 'Airplane Window Sunset Flight 4K')">
+              ✈️ <strong>Window Seat Sunset Flight</strong> · 4K Wing Over Clouds & Sunset
+            </button>
+            <button class="pill-btn" style="text-align: left; justify-content: flex-start; padding: 10px 14px; width: 100%; font-size: 12px;" onclick="setPresetYouTube('wpwP_7Uo4lI', 'Tokyo Rainy Night Walk 4K')">
+              🌧️ <strong>Tokyo Rainy Night Walk</strong> · Cyberpunk Ambient City 4K
+            </button>
+            <button class="pill-btn" style="text-align: left; justify-content: flex-start; padding: 10px 14px; width: 100%; font-size: 12px;" onclick="setPresetYouTube('1fueZCTYkpA', 'Deep Space & Milky Way 4K')">
+              🌌 <strong>Deep Space Milky Way</strong> · Stargazing Time-lapse 4K
+            </button>
+            <button class="pill-btn" style="text-align: left; justify-content: flex-start; padding: 10px 14px; width: 100%; font-size: 12px;" onclick="setPresetYouTube('eZe4Q_x84x0', 'Cozy Coffee Shop Rain')">
+              ☕ <strong>Cozy Coffee Shop</strong> · Gentle Rain & Warm Parisian Ambience
+            </button>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button class="btn-timer-secondary" onclick="closeVideoLinkModal()">Cancel</button>
+          <button class="btn-timer-primary" onclick="applyCustomVideoLink()" style="margin: 0;">Apply Video Link</button>
         </div>
       </div>
     </div>

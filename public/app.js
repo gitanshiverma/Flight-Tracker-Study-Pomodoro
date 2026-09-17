@@ -33,8 +33,26 @@ let timerInterval = null;
 
 let seatbeltFastened = true;
 let isZenMode = false;
-let currentWallpaperMode = 0; // 0: Student with Laptop Aesthetic Video (Default)
+let currentWallpaperMode = 0; // 0: Flying Through Sunset Flight (Default)
 const wallpaperModes = [
+  { 
+    id: 'video-sunset-flight', 
+    type: 'video', 
+    label: '🎬 Live Video: Flying Through Sunset Flight', 
+    videoSrc: '/assets/flying-through-the-sunset-video-plane-hd-florida-s-hd-auto-.mp4' 
+  },
+  { 
+    id: 'video-city-vibes', 
+    type: 'video', 
+    label: '🎬 Live Video: Cinematic City Vibes', 
+    videoSrc: '/assets/city-vibes-cinematic-youtube-pics-hd-auto-.mp4' 
+  },
+  { 
+    id: 'video-sky-travel', 
+    type: 'video', 
+    label: '🎬 Live Video: Airplane Window Sky Travel', 
+    videoSrc: '/assets/sky-gif-beautiful-places-to-travel-airplane-view-a-hd-auto-.mp4' 
+  },
   { 
     id: 'video-student-laptop', 
     type: 'video', 
@@ -64,12 +82,6 @@ const wallpaperModes = [
     type: 'video', 
     label: '🎬 Live Video: Sky & Landscape Chill', 
     videoSrc: '/assets/nh-b-u-tr-i-m-nhi-p-nh-phong-c-nh-c-nh-chill-video-hd-auto-.mp4' 
-  },
-  { 
-    id: 'video-sunset-wing', 
-    type: 'video', 
-    label: '🎬 Live Video: Airplane Wing Sunset Flight', 
-    videoSrc: 'https://assets.mixkit.co/videos/42171/42171-720.mp4' 
   },
   { 
     id: 'sunset-wing-exact', 
@@ -772,19 +784,47 @@ function playSeatbeltChime() {
 function updateFlightDisplay() {
   if (!activeFlight) return;
 
-  document.getElementById('airlineTag').innerText = (activeFlight.airline || 'AIRLINE').toUpperCase();
-  document.getElementById('flightNoDisplay').innerText = activeFlight.flightNumber || 'FLIGHT';
-  document.getElementById('aircraftTypeDisplay').innerText = activeFlight.aircraft || 'Commercial Jetliner';
+  const isLiveFR24 = activeFlight.source === 'flightradar24';
+
+  const airlineEl = document.getElementById('airlineTag');
+  if (airlineEl) airlineEl.innerText = (activeFlight.airline || 'AIRLINE').toUpperCase();
+
+  const flightNoEl = document.getElementById('flightNoDisplay');
+  if (flightNoEl) flightNoEl.innerText = activeFlight.flightNumber || 'FLIGHT';
+
+  const aircraftEl = document.getElementById('aircraftTypeDisplay');
+  if (aircraftEl) aircraftEl.innerText = activeFlight.aircraft || 'Commercial Jetliner';
+
+  const sourceBadgeEl = document.getElementById('flightSourceBadge');
+  if (sourceBadgeEl) {
+    if (isLiveFR24) {
+      sourceBadgeEl.innerHTML = '⚡ Flightradar24 Live';
+      sourceBadgeEl.style.display = 'inline-flex';
+      sourceBadgeEl.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+      sourceBadgeEl.style.color = '#38bdf8';
+    } else {
+      sourceBadgeEl.innerHTML = 'Curated Flight';
+      sourceBadgeEl.style.display = 'inline-flex';
+      sourceBadgeEl.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+      sourceBadgeEl.style.color = '#94a3b8';
+    }
+  }
 
   const orig = activeFlight.origin || {};
   const dest = activeFlight.destination || {};
-  document.getElementById('originCode').innerText = orig.code || 'DEP';
-  document.getElementById('originCity').innerText = orig.city ? `${orig.city}` : 'Origin';
-  document.getElementById('depTime').innerText = `STD: ${activeFlight.departureTimeUTC || '04:30'} UTC`;
+  const origCodeEl = document.getElementById('originCode');
+  if (origCodeEl) origCodeEl.innerText = orig.code || 'DEP';
+  const origCityEl = document.getElementById('originCity');
+  if (origCityEl) origCityEl.innerText = orig.city ? `${orig.city}` : (orig.name || 'Origin');
+  const depTimeEl = document.getElementById('depTime');
+  if (depTimeEl) depTimeEl.innerText = `STD: ${activeFlight.departureTimeUTC || activeFlight.departureTimeUtc || '04:30'} UTC`;
 
-  document.getElementById('destCode').innerText = dest.code || 'ARR';
-  document.getElementById('destCity').innerText = dest.city ? `${dest.city}` : 'Destination';
-  document.getElementById('arrTime').innerText = `STA: ${activeFlight.arrivalTimeUTC || '06:45'} UTC`;
+  const destCodeEl = document.getElementById('destCode');
+  if (destCodeEl) destCodeEl.innerText = dest.code || 'ARR';
+  const destCityEl = document.getElementById('destCity');
+  if (destCityEl) destCityEl.innerText = dest.city ? `${dest.city}` : (dest.name || 'Destination');
+  const arrTimeEl = document.getElementById('arrTime');
+  if (arrTimeEl) arrTimeEl.innerText = `STA: ${activeFlight.arrivalTimeUTC || activeFlight.arrivalTimeUtc || '06:45'} UTC`;
 
   updateTelemetryAndProgress();
 }
@@ -794,67 +834,108 @@ function updateTelemetryAndProgress() {
   const progress = Math.min(1.0, sessionElapsedSeconds / total);
   const percent = Math.round(progress * 100);
 
+  // Position airplane marker and progress line according to study flight progress
   const progressBar = document.getElementById('routeProgressBar');
   const planeMarker = document.getElementById('planeMarker');
   if (progressBar) progressBar.style.width = `${percent}%`;
   if (planeMarker) planeMarker.style.left = `${percent}%`;
 
-  let phase = 'CRUISING';
-  let altitude = 38000;
-  let speed = 495;
+  // Realistic Flight Phase Simulation matching user study progress
+  let phase = 'READY FOR TAKEOFF';
+  let altitude = 0;
+  let speed = 0;
+
+  const cruiseAlt = activeFlight?.cruiseAltitudeFt || 36000;
+  const cruiseSpd = activeFlight?.speedKts || Math.round((activeFlight?.speedKmh || activeFlight?.cruiseSpeedKmh || 820) * 0.54) || 460;
 
   if (percent === 0) {
-    phase = 'BOARDING & TAXI';
+    phase = sessionElapsedSeconds === 0 ? 'BOARDING & TAXI' : 'READY FOR TAKEOFF';
     altitude = 0;
     speed = 15;
   } else if (percent < 15) {
-    phase = 'CLIMBING · FL240';
-    altitude = Math.round((percent / 15) * 38000);
-    speed = Math.round(250 + (percent / 15) * 245);
+    phase = 'CLIMBING · INITIAL ASCENT';
+    altitude = Math.round((percent / 15) * Math.min(24000, cruiseAlt));
+    speed = Math.round(180 + (percent / 15) * (cruiseSpd - 180));
   } else if (percent < 85) {
-    phase = `CRUISING · FL${Math.round(activeFlight.cruiseAltitudeFt / 100) || 380}`;
-    altitude = activeFlight.cruiseAltitudeFt || 38000;
-    speed = Math.round((activeFlight.cruiseSpeedKmh ? activeFlight.cruiseSpeedKmh * 0.54 : 495) + Math.sin(Date.now() * 0.001) * 6);
+    phase = `CRUISING · FL${Math.round(cruiseAlt / 100)}`;
+    altitude = cruiseAlt;
+    speed = cruiseSpd + Math.round(Math.sin(Date.now() * 0.001) * 4);
   } else if (percent < 99) {
-    phase = 'DESCENT · FL120';
+    phase = 'DESCENT · FINAL APPROACH';
     const descRatio = (percent - 85) / 14;
-    altitude = Math.round(38000 * (1.0 - descRatio));
-    speed = Math.round(495 - descRatio * 250);
+    altitude = Math.round(cruiseAlt * (1.0 - descRatio));
+    speed = Math.round(cruiseSpd - descRatio * (cruiseSpd - 140));
   } else {
     phase = 'TOUCHDOWN · TAXI';
     altitude = 0;
     speed = 20;
   }
 
-  document.getElementById('flightPhaseText').innerText = phase;
-  document.getElementById('teleAltitude').innerHTML = `${altitude.toLocaleString()} <span>FT</span>`;
-  document.getElementById('teleSpeed').innerHTML = `${speed} <span>KTS</span>`;
+  const flightPhaseEl = document.getElementById('flightPhaseText');
+  if (flightPhaseEl) flightPhaseEl.innerText = phase.toUpperCase();
 
-  const totalKm = activeFlight.distanceKm || 2000;
+  const teleAltEl = document.getElementById('teleAltitude');
+  if (teleAltEl) teleAltEl.innerHTML = `${(altitude || 0).toLocaleString()} <span>FT</span>`;
+
+  const teleSpeedEl = document.getElementById('teleSpeed');
+  if (teleSpeedEl) teleSpeedEl.innerHTML = `${speed || 0} <span>KTS</span>`;
+
+  // Flight Route Distance & ETE (Counts down as user studies)
+  const totalKm = activeFlight?.distanceKm || 1200;
   const totalNM = Math.round(totalKm * 0.539957);
-  const remNM = Math.max(0, Math.round(totalNM * (1.0 - progress)));
-  document.getElementById('teleDistance').innerHTML = `${remNM.toLocaleString()} <span>NM</span>`;
+  const flightRemNM = Math.max(0, Math.round(totalNM * (1.0 - progress)));
 
-  const remainingSecs = Math.max(0, sessionTotalSeconds - sessionElapsedSeconds);
-  document.getElementById('teleETA').innerText = formatHMS(remainingSecs);
+  const teleDistEl = document.getElementById('teleDistance');
+  if (teleDistEl) teleDistEl.innerHTML = `${flightRemNM.toLocaleString()} <span>NM</span>`;
 
-  document.getElementById('studyClockDisplay').innerText = formatHMS(remainingSecs);
-  document.getElementById('sessionStatusSub').innerText = isTimerRunning
-    ? `Study In-Flight · ${percent}% Completed · Next Waypoint: WP${Math.min(5, Math.floor(progress * 4) + 1)}`
-    : `Session Ready · Target Time: ${formatHMS(sessionTotalSeconds)}`;
+  const flightRemainingSecs = Math.max(0, sessionTotalSeconds - sessionElapsedSeconds);
+  const teleETAEl = document.getElementById('teleETA');
+  if (teleETAEl) teleETAEl.innerText = formatHMS(flightRemainingSecs);
+
+  // Live Position & Heading (moves from Origin to Destination along route)
+  const teleCoordsEl = document.getElementById('teleCoords');
+  if (teleCoordsEl) {
+    const origLat = activeFlight?.origin?.lat || 28.5562;
+    const origLon = activeFlight?.origin?.lon || 77.1000;
+    const destLat = activeFlight?.destination?.lat || 30.6735;
+    const destLon = activeFlight?.destination?.lon || 76.7885;
+    const curLat = origLat + (destLat - origLat) * progress;
+    const curLon = origLon + (destLon - origLon) * progress;
+    const hdg = activeFlight?.heading || activeFlight?.track || 285;
+    teleCoordsEl.innerText = `${Math.abs(curLat).toFixed(2)}°${curLat >= 0 ? 'N' : 'S'}, ${Math.abs(curLon).toFixed(2)}°${curLon >= 0 ? 'E' : 'W'} · ${hdg}°`;
+  }
+
+  // Study Session Timer Clock (at the bottom dock)
+  const clockEl = document.getElementById('studyClockDisplay');
+  if (clockEl) {
+    clockEl.innerText = formatHMS(flightRemainingSecs);
+  }
+
+  const sessionSubEl = document.getElementById('sessionStatusSub');
+  if (sessionSubEl) {
+    if (isTimerRunning) {
+      sessionSubEl.innerText = `Study In-Flight · ${percent}% Completed (${formatHMS(sessionElapsedSeconds)} elapsed) · Target: ${formatHMS(sessionTotalSeconds)}`;
+    } else if (sessionElapsedSeconds === 0) {
+      sessionSubEl.innerText = `Session Ready · Target Study Time: ${formatHMS(sessionTotalSeconds)} · Press Start to begin`;
+    } else {
+      sessionSubEl.innerText = `Session Paused · ${percent}% Completed (${formatHMS(sessionElapsedSeconds)} / ${formatHMS(sessionTotalSeconds)})`;
+    }
+  }
 }
 
 function formatHMS(totalSeconds) {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  const s = Math.max(0, Math.floor(totalSeconds || 0));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
 function formatMS(totalSeconds) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  const s = Math.max(0, Math.floor(totalSeconds || 0));
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
 function toggleTimer() {
@@ -870,9 +951,11 @@ function startTimer() {
     sessionElapsedSeconds = 0;
   }
   isTimerRunning = true;
-  document.getElementById('mainTimerBtn').classList.add('running');
-  document.getElementById('mainTimerBtnText').innerText = 'Pause Session';
-  document.getElementById('timerPlayIcon').innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+  document.getElementById('mainTimerBtn')?.classList.add('running');
+  const btnText = document.getElementById('mainTimerBtnText');
+  if (btnText) btnText.innerText = 'Pause Session';
+  const playIcon = document.getElementById('timerPlayIcon');
+  if (playIcon) playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
 
   playSeatbeltChime();
 
@@ -890,18 +973,28 @@ function startTimer() {
 
 function pauseTimer() {
   isTimerRunning = false;
-  clearInterval(timerInterval);
-  timerInterval = null;
-  document.getElementById('mainTimerBtn').classList.remove('running');
-  document.getElementById('mainTimerBtnText').innerText = 'Resume Flight';
-  document.getElementById('timerPlayIcon').innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  document.getElementById('mainTimerBtn')?.classList.remove('running');
+  const btnText = document.getElementById('mainTimerBtnText');
+  if (btnText) btnText.innerText = sessionElapsedSeconds > 0 ? 'Resume Flight' : 'Start Study Session';
+  const playIcon = document.getElementById('timerPlayIcon');
+  if (playIcon) playIcon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
 }
 
 function resetTimer() {
   pauseTimer();
   sessionElapsedSeconds = 0;
+  if (timerMode === 'pomodoro') {
+    sessionTotalSeconds = 25 * 60;
+  } else if (timerMode === 'flight') {
+    sessionTotalSeconds = (activeFlight?.durationMinutes || 135) * 60;
+  }
   updateTelemetryAndProgress();
-  document.getElementById('mainTimerBtnText').innerText = 'Start Study Session';
+  const btnText = document.getElementById('mainTimerBtnText');
+  if (btnText) btnText.innerText = 'Start Study Session';
 }
 
 function completeSession() {
@@ -911,59 +1004,310 @@ function completeSession() {
   const celDur = document.getElementById('celDuration');
   const celDist = document.getElementById('celDistance');
   if (celDur) celDur.innerText = formatHMS(sessionTotalSeconds);
-  if (celDist) celDist.innerText = `${Math.round((activeFlight.distanceKm || 2000) * 0.539957).toLocaleString()} NM`;
+  if (celDist) celDist.innerText = `${Math.round((activeFlight?.distanceKm || 2000) * 0.539957).toLocaleString()} NM`;
   if (celModal) celModal.classList.add('open');
 }
 
 function closeCelebrationModal() {
-  document.getElementById('celebrationModal').classList.remove('open');
+  document.getElementById('celebrationModal')?.classList.remove('open');
   resetTimer();
 }
 
 function setTimerMode(mode) {
   timerMode = mode;
-  document.getElementById('tabModePomodoro').classList.toggle('active', mode === 'pomodoro');
-  document.getElementById('tabModeFlight').classList.toggle('active', mode === 'flight');
-  document.getElementById('tabModeCustom').classList.toggle('active', mode === 'custom');
+  document.getElementById('tabModePomodoro')?.classList.toggle('active', mode === 'pomodoro');
+  document.getElementById('tabModeFlight')?.classList.toggle('active', mode === 'flight');
+  document.getElementById('tabModeCustom')?.classList.toggle('active', mode === 'custom');
 
   if (mode === 'pomodoro') {
     sessionTotalSeconds = 25 * 60;
+    sessionElapsedSeconds = 0;
+    resetTimer();
   } else if (mode === 'flight') {
-    sessionTotalSeconds = (activeFlight.durationMinutes || 135) * 60;
+    sessionTotalSeconds = (activeFlight?.durationMinutes || 135) * 60;
+    sessionElapsedSeconds = 0;
+    resetTimer();
   } else if (mode === 'custom') {
-    openFlightSearchModal();
+    openFlightSearchModal('duration');
     return;
   }
-  resetTimer();
 }
 
 /* =========================================================================
-   4. BACKEND API CLIENT & FLIGHT SEARCH ENGINE
+   4. BACKEND API CLIENT & FLIGHTRADAR24 LIVE INTEGRATION
 ========================================================================= */
+
+const fallbackFlightDatabase = [
+  {
+    flightNumber: "AI-865",
+    callsign: "AIC865",
+    airline: "Air India",
+    aircraft: "Boeing 787-8 Dreamliner",
+    origin: { code: "DEL", city: "New Delhi", name: "Indira Gandhi Intl", country: "India", lat: 28.5562, lon: 77.1000 },
+    destination: { code: "BOM", city: "Mumbai", name: "Chhatrapati Shivaji Intl", country: "India", lat: 19.0896, lon: 72.8656 },
+    distanceKm: 1137,
+    avgSpeedKmh: 830,
+    durationMinutes: 135,
+    category: "Standard Study (2h 15m)"
+  },
+  {
+    flightNumber: "6E-204",
+    callsign: "IGO204",
+    airline: "IndiGo",
+    aircraft: "Airbus A320neo",
+    origin: { code: "DEL", city: "New Delhi", name: "Indira Gandhi Intl", country: "India", lat: 28.5562, lon: 77.1000 },
+    destination: { code: "JAI", city: "Jaipur", name: "Jaipur Intl Airport", country: "India", lat: 26.8242, lon: 75.8122 },
+    distanceKm: 240,
+    avgSpeedKmh: 520,
+    durationMinutes: 45,
+    category: "Short Sprint (45m)"
+  },
+  {
+    flightNumber: "AI-672",
+    callsign: "AIC672",
+    airline: "Air India",
+    aircraft: "Airbus A319",
+    origin: { code: "BOM", city: "Mumbai", name: "Chhatrapati Shivaji Intl", country: "India", lat: 19.0896, lon: 72.8656 },
+    destination: { code: "PNQ", city: "Pune", name: "Pune Airport", country: "India", lat: 18.5822, lon: 73.9197 },
+    distanceKm: 125,
+    avgSpeedKmh: 460,
+    durationMinutes: 35,
+    category: "Short Sprint (35m)"
+  },
+  {
+    flightNumber: "6E-554",
+    callsign: "IGO554",
+    airline: "IndiGo",
+    aircraft: "Airbus A320",
+    origin: { code: "BLR", city: "Bengaluru", name: "Kempegowda Intl", country: "India", lat: 13.1986, lon: 77.7066 },
+    destination: { code: "MAA", city: "Chennai", name: "Chennai Intl", country: "India", lat: 12.9941, lon: 80.1709 },
+    distanceKm: 270,
+    avgSpeedKmh: 540,
+    durationMinutes: 50,
+    category: "Short Sprint (50m)"
+  },
+  {
+    flightNumber: "QP-1311",
+    callsign: "AKJ1311",
+    airline: "Akasa Air",
+    aircraft: "Boeing 737 MAX 8",
+    origin: { code: "BOM", city: "Mumbai", name: "Chhatrapati Shivaji Intl", country: "India", lat: 19.0896, lon: 72.8656 },
+    destination: { code: "GOI", city: "Goa", name: "Dabolim Airport", country: "India", lat: 15.3808, lon: 73.8313 },
+    distanceKm: 435,
+    avgSpeedKmh: 680,
+    durationMinutes: 65,
+    category: "1 Hour Focus"
+  },
+  {
+    flightNumber: "6E-2341",
+    callsign: "IGO2341",
+    airline: "IndiGo",
+    aircraft: "Airbus A321neo",
+    origin: { code: "BLR", city: "Bengaluru", name: "Kempegowda Intl", country: "India", lat: 13.1986, lon: 77.7066 },
+    destination: { code: "DEL", city: "New Delhi", name: "Indira Gandhi Intl", country: "India", lat: 28.5562, lon: 77.1000 },
+    distanceKm: 1740,
+    avgSpeedKmh: 800,
+    durationMinutes: 160,
+    category: "Deep Focus (2h 40m)"
+  },
+  {
+    flightNumber: "UK-817",
+    callsign: "VTI817",
+    airline: "Vistara",
+    aircraft: "Airbus A320neo",
+    origin: { code: "DEL", city: "New Delhi", name: "Indira Gandhi Intl", country: "India", lat: 28.5562, lon: 77.1000 },
+    destination: { code: "BLR", city: "Bengaluru", name: "Kempegowda Intl", country: "India", lat: 13.1986, lon: 77.7066 },
+    distanceKm: 1740,
+    avgSpeedKmh: 810,
+    durationMinutes: 165,
+    category: "Deep Focus (2h 45m)"
+  },
+  {
+    flightNumber: "AI-773",
+    callsign: "AIC773",
+    airline: "Air India",
+    aircraft: "Airbus A320",
+    origin: { code: "DEL", city: "New Delhi", name: "Indira Gandhi Intl", country: "India", lat: 28.5562, lon: 77.1000 },
+    destination: { code: "CCU", city: "Kolkata", name: "Netaji Subhash Chandra Bose Intl", country: "India", lat: 22.6547, lon: 88.4467 },
+    distanceKm: 1305,
+    avgSpeedKmh: 780,
+    durationMinutes: 130,
+    category: "Standard Study (2h 10m)"
+  },
+  {
+    flightNumber: "6E-344",
+    callsign: "IGO344",
+    airline: "IndiGo",
+    aircraft: "Airbus A320neo",
+    origin: { code: "DEL", city: "New Delhi", name: "Indira Gandhi Intl", country: "India", lat: 28.5562, lon: 77.1000 },
+    destination: { code: "LKO", city: "Lucknow", name: "Chaudhary Charan Singh Intl", country: "India", lat: 26.7606, lon: 80.8893 },
+    distanceKm: 420,
+    avgSpeedKmh: 620,
+    durationMinutes: 60,
+    category: "1 Hour Focus"
+  },
+  {
+    flightNumber: "AI-409",
+    callsign: "AIC409",
+    airline: "Air India",
+    aircraft: "Airbus A320",
+    origin: { code: "DEL", city: "New Delhi", name: "Indira Gandhi Intl", country: "India", lat: 28.5562, lon: 77.1000 },
+    destination: { code: "PAT", city: "Patna", name: "Jay Prakash Narayan Airport", "country": "India", lat: 25.5913, lon: 85.0880 },
+    distanceKm: 850,
+    avgSpeedKmh: 740,
+    durationMinutes: 95,
+    category: "1.5 Hour Session"
+  },
+  {
+    flightNumber: "6E-5012",
+    callsign: "IGO5012",
+    airline: "IndiGo",
+    aircraft: "Airbus A320",
+    origin: { code: "BOM", city: "Mumbai", name: "Chhatrapati Shivaji Intl", country: "India", lat: 19.0896, lon: 72.8656 },
+    destination: { code: "HYD", city: "Hyderabad", name: "Rajiv Gandhi Intl", country: "India", lat: 17.2403, lon: 78.4294 },
+    distanceKm: 620,
+    avgSpeedKmh: 710,
+    durationMinutes: 80,
+    category: "1.5 Hour Session"
+  },
+  {
+    flightNumber: "EK-511",
+    callsign: "UAE511",
+    airline: "Emirates",
+    aircraft: "Boeing 777-300ER",
+    origin: { code: "DXB", city: "Dubai", name: "Dubai Intl Airport", country: "UAE", lat: 25.2532, lon: 55.3657 },
+    destination: { code: "DEL", city: "New Delhi", name: "Indira Gandhi Intl", country: "India", lat: 28.5562, lon: 77.1000 },
+    distanceKm: 2185,
+    avgSpeedKmh: 820,
+    durationMinutes: 215,
+    category: "Deep Focus (3.5h)"
+  },
+  {
+    flightNumber: "FZ-445",
+    callsign: "FDB445",
+    airline: "FlyDubai",
+    aircraft: "Boeing 737-800",
+    origin: { code: "DXB", city: "Dubai", name: "Dubai Intl Airport", country: "UAE", lat: 25.2532, lon: 55.3657 },
+    destination: { code: "BOM", city: "Mumbai", name: "Chhatrapati Shivaji Intl", country: "India", lat: 19.0896, lon: 72.8656 },
+    distanceKm: 1930,
+    avgSpeedKmh: 810,
+    durationMinutes: 200,
+    category: "Deep Focus (3h 20m)"
+  },
+  {
+    flightNumber: "SQ-402",
+    callsign: "SIA402",
+    airline: "Singapore Airlines",
+    aircraft: "Airbus A350-900",
+    origin: { code: "SIN", city: "Singapore", name: "Singapore Changi Airport", country: "Singapore", lat: 1.3644, lon: 103.9915 },
+    destination: { code: "DEL", city: "New Delhi", name: "Indira Gandhi Intl", country: "India", lat: 28.5562, lon: 77.1000 },
+    distanceKm: 4150,
+    avgSpeedKmh: 840,
+    durationMinutes: 330,
+    category: "Long Haul (5.5h)"
+  },
+  {
+    flightNumber: "TG-316",
+    callsign: "THA316",
+    airline: "Thai Airways",
+    aircraft: "Boeing 777-200",
+    origin: { code: "DEL", city: "New Delhi", name: "Indira Gandhi Intl", country: "India", lat: 28.5562, lon: 77.1000 },
+    destination: { code: "BKK", city: "Bangkok", name: "Suvarnabhumi Airport", country: "Thailand", lat: 13.6900, lon: 100.7501 },
+    distanceKm: 2930,
+    avgSpeedKmh: 830,
+    durationMinutes: 255,
+    category: "Long Haul (4h 15m)"
+  },
+  {
+    flightNumber: "BA-178",
+    callsign: "BAW178",
+    airline: "British Airways",
+    aircraft: "Boeing 777-200ER",
+    origin: { code: "JFK", city: "New York", name: "John F. Kennedy Intl", country: "USA", lat: 40.6413, lon: -73.7781 },
+    destination: { code: "LHR", city: "London", name: "London Heathrow Airport", country: "UK", lat: 51.4700, lon: -0.4543 },
+    distanceKm: 5540,
+    avgSpeedKmh: 870,
+    durationMinutes: 420,
+    category: "Deep Immersion (7h)"
+  }
+];
+
+let liveTelemetryPollInterval = null;
+let currentActiveTab = 'radar';
+
+function populateAirportDropdowns(airports) {
+  const origSelect = document.getElementById('selectOrigin');
+  const destSelect = document.getElementById('selectDestination');
+  let html = '<option value="">-- All Airports --</option>';
+  airports.forEach(a => {
+    html += `<option value="${a.code}">${a.code} · ${a.city || a.name} (${a.country})</option>`;
+  });
+  if (origSelect) origSelect.innerHTML = html;
+  if (destSelect) destSelect.innerHTML = html;
+}
 
 async function loadAirports() {
   try {
     const res = await fetch('/api/flights/airports');
-    const data = await res.json();
-    if (data && data.airports) {
-      const origSelect = document.getElementById('selectOrigin');
-      const destSelect = document.getElementById('selectDestination');
-      
-      let html = '<option value="">-- All Airports --</option>';
-      data.airports.forEach(a => {
-        html += `<option value="${a.code}">${a.code} · ${a.city} (${a.country})</option>`;
-      });
-      origSelect.innerHTML = html;
-      destSelect.innerHTML = html;
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.airports && data.airports.length > 0) {
+        populateAirportDropdowns(data.airports);
+        return;
+      }
     }
   } catch (err) {
-    console.warn('Could not load airports from backend:', err);
+    console.warn('Backend airports fetch fallback:', err);
+  }
+
+  // Fallback to airports from catalog
+  const airportMap = new Map();
+  fallbackFlightDatabase.forEach(f => {
+    if (f.origin && f.origin.code) airportMap.set(f.origin.code, f.origin);
+    if (f.destination && f.destination.code) airportMap.set(f.destination.code, f.destination);
+  });
+  populateAirportDropdowns(Array.from(airportMap.values()));
+}
+
+async function fetchAndRenderRadarFlights(customParams = {}) {
+  const grid = document.getElementById('flightResultsGrid');
+  if (grid) grid.innerHTML = '<div style="color: #38bdf8; font-size: 13px; grid-column: 1/-1; padding: 25px; text-align: center;"><span class="pulse-dot" style="display:inline-block; margin-right:8px;"></span>Receiving live Flightradar24 ADS-B transponder telemetry...</div>';
+
+  try {
+    const query = new URLSearchParams();
+    query.append('lat', customParams.lat || '28.65');
+    query.append('lon', customParams.lon || '77.23');
+    query.append('zoom', customParams.zoom || '6');
+    if (customParams.search) query.append('search', customParams.search);
+
+    const res = await fetch(`/api/flights/radar?${query.toString()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    allFlights = data.flights || [];
+
+    // Update Live Radar Header & Badge
+    const badgeText = document.getElementById('fr24BadgeText');
+    if (badgeText) badgeText.innerText = `FR24 LIVE: ${allFlights.length} FLIGHTS`;
+    const bannerSub = document.getElementById('radarBannerSub');
+    if (bannerSub) bannerSub.innerText = `Sector: 28.65°N, 77.23°E · ${allFlights.length} Active Airborne Aircraft (ADS-B)`;
+
+    renderFlightCards(allFlights);
+  } catch (err) {
+    console.warn('Flightradar24 live fetch fallback:', err);
+    // Fallback gracefully to catalog flights
+    let filtered = [...fallbackFlightDatabase];
+    if (customParams.search) {
+      const q = customParams.search.toLowerCase();
+      filtered = filtered.filter(f => f.flightNumber?.toLowerCase().includes(q) || f.airline?.toLowerCase().includes(q) || f.origin?.city?.toLowerCase().includes(q) || f.destination?.city?.toLowerCase().includes(q));
+    }
+    allFlights = filtered;
+    renderFlightCards(allFlights);
   }
 }
 
 async function fetchAndRenderFlights(filterParams = {}) {
   const grid = document.getElementById('flightResultsGrid');
-  grid.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; grid-column: 1/-1; padding: 20px; text-align: center;">Searching flights in database...</div>';
+  if (grid) grid.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; grid-column: 1/-1; padding: 20px; text-align: center;"><span class="pulse-dot" style="display:inline-block; margin-right:8px;"></span>Searching flight database...</div>';
 
   try {
     const query = new URLSearchParams();
@@ -972,57 +1316,103 @@ async function fetchAndRenderFlights(filterParams = {}) {
     if (filterParams.from) query.append('from', filterParams.from);
     if (filterParams.to) query.append('to', filterParams.to);
     if (filterParams.search) query.append('search', filterParams.search);
+    if (filterParams.source) query.append('source', filterParams.source);
 
     const res = await fetch(`/api/flights?${query.toString()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     allFlights = data.flights || [];
 
     renderFlightCards(allFlights);
   } catch (err) {
-    grid.innerHTML = '<div style="color: #f87171; font-size: 13px; grid-column: 1/-1;">Error connecting to flight database. Check backend server.</div>';
+    console.warn('Database query fallback to local catalog:', err);
+    let filtered = [...fallbackFlightDatabase];
+
+    if (filterParams.durationMinutes) {
+      const target = parseFloat(filterParams.durationMinutes);
+      const tol = parseFloat(filterParams.tolerance) || 45;
+      filtered = filtered.map(f => {
+        const diff = Math.abs((f.durationMinutes || 60) - target);
+        const matchScore = Math.max(0, Math.round(100 - (diff / Math.max(target, 30)) * 100));
+        return { ...f, matchScore, diffMinutes: diff };
+      }).filter(f => f.diffMinutes <= tol * 2).sort((a, b) => a.diffMinutes - b.diffMinutes);
+    }
+
+    if (filterParams.from) {
+      filtered = filtered.filter(f => f.origin?.code?.toLowerCase() === filterParams.from.toLowerCase());
+    }
+    if (filterParams.to) {
+      filtered = filtered.filter(f => f.destination?.code?.toLowerCase() === filterParams.to.toLowerCase());
+    }
+    if (filterParams.search) {
+      const q = filterParams.search.toLowerCase();
+      filtered = filtered.filter(f => f.flightNumber?.toLowerCase().includes(q) || f.airline?.toLowerCase().includes(q) || f.origin?.city?.toLowerCase().includes(q) || f.destination?.city?.toLowerCase().includes(q));
+    }
+
+    allFlights = filtered;
+    renderFlightCards(allFlights);
   }
 }
 
 function renderFlightCards(flights) {
   const grid = document.getElementById('flightResultsGrid');
+  if (!grid) return;
+
   if (!flights || flights.length === 0) {
-    grid.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; grid-column: 1/-1; padding: 30px; text-align: center;">No flights found matching criteria. Try adjusting time or route filters.</div>';
+    grid.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; grid-column: 1/-1; padding: 30px; text-align: center;">No flights found matching criteria. Try adjusting filters or searching a different flight number.</div>';
     return;
   }
 
   let html = '';
   flights.forEach(f => {
-    const isSelected = activeFlight && activeFlight.flightNumber === f.flightNumber;
-    const durHours = Math.floor(f.durationMinutes / 60);
-    const durMins = f.durationMinutes % 60;
+    const isSelected = activeFlight && (activeFlight.flightNumber === f.flightNumber || activeFlight.callsign === f.callsign);
+    const isFR24 = f.source === 'flightradar24';
+
+    const durHours = Math.floor((f.durationMinutes || 60) / 60);
+    const durMins = (f.durationMinutes || 60) % 60;
     const durFormatted = durHours > 0 ? `${durHours}h ${durMins}m` : `${durMins}m`;
 
-    const matchBadge = f.matchScore !== undefined
-      ? `<span class="fcard-badge">${f.matchScore}% Study Match</span>`
-      : `<span class="fcard-badge" style="background: rgba(56,189,248,0.15); color: #38bdf8; border-color: rgba(56,189,248,0.3);">${durFormatted}</span>`;
+    let badgeHtml = '';
+    if (isFR24) {
+      const fl = Math.round((f.altitudeFt || 36000) / 100);
+      badgeHtml = `<span class="fcard-badge" style="background: rgba(14,165,233,0.18); color: #38bdf8; border-color: rgba(56,189,248,0.4);"><span class="pulse-dot" style="width:5px; height:5px; display:inline-block; margin-right:4px;"></span>FL${fl} · ${f.speedKts || 450} KTS</span>`;
+    } else if (f.matchScore !== undefined) {
+      badgeHtml = `<span class="fcard-badge">${f.matchScore}% Study Match</span>`;
+    } else {
+      badgeHtml = `<span class="fcard-badge" style="background: rgba(56,189,248,0.15); color: #38bdf8; border-color: rgba(56,189,248,0.3);">${durFormatted}</span>`;
+    }
+
+    const origCode = f.origin?.code || 'DEP';
+    const origCity = f.origin?.city || f.origin?.name || 'Origin';
+    const destCode = f.destination?.code || 'ARR';
+    const destCity = f.destination?.city || f.destination?.name || 'Destination';
+
+    const trackInfo = f.track != null ? ` · HDG ${f.track}°` : '';
+    const distNM = f.distanceKm ? Math.round(f.distanceKm * 0.54) : 800;
+    const safeFlightNo = encodeURIComponent(f.flightNumber || f.callsign || '');
 
     html += `
-      <div class="flight-card-item ${isSelected ? 'selected' : ''}" onclick="selectFlight('${f.flightNumber}')">
+      <div class="flight-card-item ${isSelected ? 'selected' : ''} ${isFR24 ? 'fcard-fr24' : ''}" onclick="selectFlight('${safeFlightNo}')">
         <div class="fcard-top">
-          <span class="fcard-airline">${f.airline} · <strong style="color: #fff;">${f.flightNumber}</strong></span>
-          ${matchBadge}
+          <span class="fcard-airline">${f.airline} · <strong style="color: #fff;">${f.flightNumber}</strong> ${f.callsign && f.callsign !== f.flightNumber ? `<span style="font-size:11px; opacity:0.7;">(${f.callsign})</span>` : ''}</span>
+          ${badgeHtml}
         </div>
         <div class="fcard-route-row">
           <div class="fcard-airport">
-            <span class="fcard-code">${f.origin.code}</span>
-            <span class="fcard-city">${f.origin.city}</span>
+            <span class="fcard-code">${origCode}</span>
+            <span class="fcard-city">${origCity}</span>
           </div>
           <div class="fcard-duration-pill">
             <span>✈️ ${durFormatted}</span>
           </div>
           <div class="fcard-airport dest">
-            <span class="fcard-code">${f.destination.code}</span>
-            <span class="fcard-city">${f.destination.city}</span>
+            <span class="fcard-code">${destCode}</span>
+            <span class="fcard-city">${destCity}</span>
           </div>
         </div>
         <div class="fcard-footer">
-          <span>${f.aircraft}</span>
-          <span>${Math.round(f.distanceKm * 0.54)} NM · FL${Math.round(f.cruiseAltitudeFt / 100)}</span>
+          <span>${f.aircraft || 'Commercial Jet'} ${f.registration ? `· ${f.registration}` : ''}</span>
+          <span>${distNM} NM · FL${Math.round((f.altitudeFt || 36000) / 100)}${trackInfo}</span>
         </div>
       </div>
     `;
@@ -1030,61 +1420,147 @@ function renderFlightCards(flights) {
   grid.innerHTML = html;
 }
 
-function selectFlight(flightNumber) {
-  const flight = allFlights.find(f => f.flightNumber === flightNumber);
+async function selectFlight(flightIdentifier) {
+  const decodedId = decodeURIComponent(flightIdentifier || '');
+  let flight = allFlights.find(f => f.flightNumber === decodedId || f.callsign === decodedId || f.id === decodedId);
+  
+  if (!flight) {
+    try {
+      const res = await fetch(`/api/flights/${encodeURIComponent(decodedId)}/live`);
+      if (res.ok) {
+        flight = await res.json();
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+
   if (!flight) return;
 
   activeFlight = flight;
-  if (timerMode === 'flight' || timerMode === 'custom') {
-    sessionTotalSeconds = (flight.durationMinutes || 135) * 60;
+
+  // Set session duration and cleanly reset study elapsed time to 0
+  if (timerMode === 'flight') {
+    sessionTotalSeconds = (flight.durationMinutes || 60) * 60;
+  } else if (timerMode === 'pomodoro') {
+    sessionTotalSeconds = 25 * 60;
   }
   sessionElapsedSeconds = 0;
   pauseTimer();
+
   updateFlightDisplay();
   closeFlightSearchModal();
   playSeatbeltChime();
+
+  // Start live polling if flight is from live Flightradar24
+  startLiveTelemetryPolling();
+}
+
+function startLiveTelemetryPolling() {
+  if (liveTelemetryPollInterval) {
+    clearInterval(liveTelemetryPollInterval);
+    liveTelemetryPollInterval = null;
+  }
+
+  if (!activeFlight) return;
+
+  liveTelemetryPollInterval = setInterval(async () => {
+    if (!activeFlight || !activeFlight.flightNumber) return;
+    try {
+      const res = await fetch(`/api/flights/${encodeURIComponent(activeFlight.flightNumber)}/live`);
+      if (res.ok) {
+        const liveData = await res.json();
+        if (liveData) {
+          activeFlight = {
+            ...activeFlight,
+            registration: liveData.registration || activeFlight.registration,
+            aircraft: liveData.aircraft || activeFlight.aircraft,
+            airline: liveData.airline || activeFlight.airline,
+            track: liveData.track || activeFlight.track,
+            heading: liveData.heading || activeFlight.heading,
+            distanceKm: liveData.distanceKm || activeFlight.distanceKm
+          };
+          updateFlightDisplay();
+        }
+      }
+    } catch (err) {
+      // Quiet failover
+    }
+  }, 8000);
 }
 
 /* =========================================================================
    5. MODAL & HUD CONTROLS
 ========================================================================= */
 
-function openFlightSearchModal() {
-  document.getElementById('flightModal').classList.add('open');
-  onDurationInputsChanged();
+function openFlightSearchModal(initialTab = null) {
+  const modal = document.getElementById('flightModal');
+  if (modal) modal.classList.add('open');
+  if (initialTab) {
+    switchModalTab(initialTab);
+  } else {
+    switchModalTab(currentActiveTab || 'radar');
+  }
 }
 
 function closeFlightSearchModal() {
-  document.getElementById('flightModal').classList.remove('open');
+  const modal = document.getElementById('flightModal');
+  if (modal) modal.classList.remove('open');
 }
 
 function switchModalTab(tab) {
-  document.getElementById('modalTabDuration').classList.toggle('active', tab === 'duration');
-  document.getElementById('modalTabFromTo').classList.toggle('active', tab === 'fromto');
-  document.getElementById('modalTabAll').classList.toggle('active', tab === 'all');
+  currentActiveTab = tab;
 
-  document.getElementById('tabContentDuration').style.display = tab === 'duration' ? 'block' : 'none';
-  document.getElementById('tabContentFromTo').style.display = tab === 'fromto' ? 'block' : 'none';
+  const tabRadar = document.getElementById('modalTabRadar');
+  const tabDuration = document.getElementById('modalTabDuration');
+  const tabFromTo = document.getElementById('modalTabFromTo');
+  const tabAll = document.getElementById('modalTabAll');
 
-  if (tab === 'duration') {
+  if (tabRadar) tabRadar.classList.toggle('active', tab === 'radar');
+  if (tabDuration) tabDuration.classList.toggle('active', tab === 'duration');
+  if (tabFromTo) tabFromTo.classList.toggle('active', tab === 'fromto');
+  if (tabAll) tabAll.classList.toggle('active', tab === 'all');
+
+  const contentRadar = document.getElementById('tabContentRadar');
+  const contentDuration = document.getElementById('tabContentDuration');
+  const contentFromTo = document.getElementById('tabContentFromTo');
+
+  if (contentRadar) contentRadar.style.display = tab === 'radar' ? 'block' : 'none';
+  if (contentDuration) contentDuration.style.display = tab === 'duration' ? 'block' : 'none';
+  if (contentFromTo) contentFromTo.style.display = tab === 'fromto' ? 'block' : 'none';
+
+  if (tab === 'radar') {
+    fetchAndRenderRadarFlights();
+  } else if (tab === 'duration') {
     onDurationInputsChanged();
   } else if (tab === 'fromto') {
     onRouteFilterChanged();
   } else {
-    fetchAndRenderFlights();
+    fetchAndRenderFlights({ source: 'catalog' });
   }
 }
 
 function setQuickDuration(h, m) {
   document.getElementById('inputHours').value = h;
   document.getElementById('inputMinutes').value = m;
-  onDurationInputsChanged();
+  const totalMins = Math.max(10, (h * 60) + m);
+  if (timerMode === 'custom') {
+    sessionTotalSeconds = totalMins * 60;
+    sessionElapsedSeconds = 0;
+    updateTelemetryAndProgress();
+  }
+  fetchAndRenderFlights({ durationMinutes: totalMins, tolerance: 45 });
 }
 
 function onDurationInputsChanged() {
   const h = parseInt(document.getElementById('inputHours').value) || 0;
   const m = parseInt(document.getElementById('inputMinutes').value) || 0;
-  const totalMins = Math.max(20, (h * 60) + m);
+  const totalMins = Math.max(10, (h * 60) + m);
+  if (timerMode === 'custom') {
+    sessionTotalSeconds = totalMins * 60;
+    sessionElapsedSeconds = 0;
+    updateTelemetryAndProgress();
+  }
   fetchAndRenderFlights({ durationMinutes: totalMins, tolerance: 45 });
 }
 
@@ -1102,7 +1578,11 @@ function onSearchInputChanged() {
   clearTimeout(searchDebounce);
   searchDebounce = setTimeout(() => {
     const q = document.getElementById('searchInput').value;
-    fetchAndRenderFlights({ search: q });
+    if (currentActiveTab === 'radar') {
+      fetchAndRenderRadarFlights({ search: q });
+    } else {
+      fetchAndRenderFlights({ search: q });
+    }
   }, 250);
 }
 
@@ -1129,7 +1609,7 @@ function toggleWindowFrame() {
   btn.classList.toggle('primary', frame.classList.contains('active'));
 }
 
-/* --- Wallpaper Mode Switcher & Video Wallpaper Controller --- */
+/* --- Wallpaper Mode Switcher & Video / YouTube Wallpaper Controller --- */
 function applyWallpaperMode(mode) {
   if (!mode) return;
   const liveCont = document.getElementById('liveWallpaperContainer');
@@ -1137,12 +1617,39 @@ function applyWallpaperMode(mode) {
   const webglCanvas = document.getElementById('webglCanvas');
   const videoCont = document.getElementById('videoWallpaperContainer');
   const videoPlayer = document.getElementById('bgVideoPlayer');
+  const ytCont = document.getElementById('youtubeWallpaperContainer');
+  const ytIframe = document.getElementById('ytBgIframe');
   const photoLayer = document.getElementById('photoBgLayer');
   const bgModeLabel = document.getElementById('bgModeLabel');
 
   if (bgModeLabel) bgModeLabel.innerText = mode.label;
 
-  if (mode.type === 'video') {
+  if (mode.type === 'youtube') {
+    if (webglCanvas) webglCanvas.style.display = 'none';
+    if (liveCont) liveCont.style.display = 'none';
+    if (photoLayer) photoLayer.className = 'photo-bg-layer';
+    if (videoCont) {
+      videoCont.style.display = 'none';
+      videoCont.classList.remove('active');
+    }
+    if (videoPlayer) videoPlayer.pause();
+
+    if (ytCont) {
+      ytCont.style.display = 'block';
+      ytCont.classList.add('active');
+    }
+    if (ytIframe && mode.embedUrl) {
+      if (ytIframe.src !== mode.embedUrl) {
+        ytIframe.src = mode.embedUrl;
+      }
+    }
+  } else if (mode.type === 'video') {
+    if (ytCont) {
+      ytCont.style.display = 'none';
+      ytCont.classList.remove('active');
+    }
+    if (ytIframe) ytIframe.src = '';
+
     if (webglCanvas) webglCanvas.style.display = 'none';
     if (liveCont) liveCont.style.display = 'none';
     if (photoLayer) photoLayer.className = 'photo-bg-layer';
@@ -1160,6 +1667,12 @@ function applyWallpaperMode(mode) {
       });
     }
   } else if (mode.type === '3d') {
+    if (ytCont) {
+      ytCont.style.display = 'none';
+      ytCont.classList.remove('active');
+    }
+    if (ytIframe) ytIframe.src = '';
+
     if (videoCont) {
       videoCont.style.display = 'none';
       videoCont.classList.remove('active');
@@ -1170,6 +1683,12 @@ function applyWallpaperMode(mode) {
     if (webglCanvas) webglCanvas.style.display = 'block';
     if (!threeInitialized) initThreeScene();
   } else if (mode.type === 'photo') {
+    if (ytCont) {
+      ytCont.style.display = 'none';
+      ytCont.classList.remove('active');
+    }
+    if (ytIframe) ytIframe.src = '';
+
     if (videoCont) {
       videoCont.style.display = 'none';
       videoCont.classList.remove('active');
@@ -1185,6 +1704,93 @@ function applyWallpaperMode(mode) {
 function cycleWallpaperMode() {
   currentWallpaperMode = (currentWallpaperMode + 1) % wallpaperModes.length;
   applyWallpaperMode(wallpaperModes[currentWallpaperMode]);
+}
+
+/* --- YouTube & Video Link Modal Controller --- */
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const str = url.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
+    return str;
+  }
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|live\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = str.match(regExp);
+  if (match && match[2] && match[2].length === 11) {
+    return match[2];
+  }
+  return null;
+}
+
+function getYouTubeEmbedUrl(videoId) {
+  return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&enablejsapi=1`;
+}
+
+function openVideoLinkModal() {
+  const modal = document.getElementById('videoLinkModal');
+  if (modal) {
+    modal.classList.add('open');
+    const input = document.getElementById('customVideoLinkInput');
+    if (input) {
+      input.value = '';
+      setTimeout(() => input.focus(), 120);
+    }
+  }
+}
+
+function closeVideoLinkModal() {
+  const modal = document.getElementById('videoLinkModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function applyCustomVideoLink() {
+  const input = document.getElementById('customVideoLinkInput');
+  if (!input || !input.value.trim()) return;
+
+  const url = input.value.trim();
+  const ytId = extractYouTubeId(url);
+
+  if (ytId) {
+    const customMode = {
+      id: `youtube-${ytId}`,
+      type: 'youtube',
+      label: `🎬 YouTube: ${ytId}`,
+      embedUrl: getYouTubeEmbedUrl(ytId),
+      videoId: ytId
+    };
+    wallpaperModes.unshift(customMode);
+    currentWallpaperMode = 0;
+    applyWallpaperMode(customMode);
+    closeVideoLinkModal();
+    input.value = '';
+  } else if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('/')) {
+    const customMode = {
+      id: 'custom-web-video',
+      type: 'video',
+      label: `🎬 Custom Video Link`,
+      videoSrc: url
+    };
+    wallpaperModes.unshift(customMode);
+    currentWallpaperMode = 0;
+    applyWallpaperMode(customMode);
+    closeVideoLinkModal();
+    input.value = '';
+  } else {
+    alert('Please enter a valid YouTube URL (e.g. https://www.youtube.com/watch?v=...) or direct video stream URL.');
+  }
+}
+
+function setPresetYouTube(videoId, label) {
+  const customMode = {
+    id: `youtube-${videoId}`,
+    type: 'youtube',
+    label: `🎬 YouTube: ${label}`,
+    embedUrl: getYouTubeEmbedUrl(videoId),
+    videoId: videoId
+  };
+  wallpaperModes.unshift(customMode);
+  currentWallpaperMode = 0;
+  applyWallpaperMode(customMode);
+  closeVideoLinkModal();
 }
 
 function triggerCustomVideoUpload() {
@@ -1216,20 +1822,47 @@ function onCustomVideoFilePicked(e) {
   applyWallpaperMode(customMode);
 }
 
-/* --- Pure Zen Mode (Full-Screen Animated Wallpaper) --- */
+/* --- Pure Zen Mode (Full-Screen Animated Wallpaper + Bottom-Left Pomodoro Dock) --- */
 function toggleZenMode(enable) {
-  isZenMode = enable;
+  isZenMode = typeof enable === 'boolean' ? enable : !isZenMode;
   const ui = document.getElementById('uiLayer');
   const restoreBtn = document.getElementById('zenRestoreBtn');
 
   if (isZenMode) {
-    ui.classList.add('zen-hidden');
-    restoreBtn.classList.add('visible');
+    if (ui) {
+      ui.classList.add('zen-mode');
+      ui.classList.remove('zen-hidden');
+    }
+    if (restoreBtn) restoreBtn.classList.add('visible');
+
+    // Trigger browser Fullscreen API
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.log('Fullscreen request was blocked or not allowed:', err);
+      });
+    }
   } else {
-    ui.classList.remove('zen-hidden');
-    restoreBtn.classList.remove('visible');
+    if (ui) {
+      ui.classList.remove('zen-mode');
+      ui.classList.remove('zen-hidden');
+    }
+    if (restoreBtn) restoreBtn.classList.remove('visible');
+
+    // Exit browser Fullscreen API
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(err => {
+        console.log('Exit fullscreen error:', err);
+      });
+    }
   }
 }
+
+// Sync Zen Mode state when user exits fullscreen via browser controls / Esc
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && isZenMode) {
+    toggleZenMode(false);
+  }
+});
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') {
@@ -1238,6 +1871,7 @@ window.addEventListener('keydown', (e) => {
   } else if (e.code === 'Escape') {
     if (isZenMode) toggleZenMode(false);
     closeFlightSearchModal();
+    closeVideoLinkModal();
   }
 });
 
@@ -1683,12 +2317,29 @@ function stopLofiSynthesizer() {
 /* =========================================================================
    7. APP BOOTSTRAP
 ========================================================================= */
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   initThreeScene();
   applyWallpaperMode(wallpaperModes[currentWallpaperMode]);
   loadAirports();
-  fetchAndRenderFlights({ durationMinutes: 135 });
   updateFlightDisplay();
   initSpotifyUI();
+
+  // Fetch initial Flightradar24 live radar stats
+  try {
+    const res = await fetch('/api/flights/radar?lat=28.65&lon=77.23&zoom=6');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.flights && data.flights.length > 0) {
+        const badge = document.getElementById('fr24BadgeText');
+        if (badge) badge.innerText = `FR24 LIVE: ${data.flights.length} FLIGHTS`;
+      }
+    }
+  } catch (e) {
+    // Fallback gracefully
+  }
+
+  // Pre-load default flight catalog
+  fetchAndRenderFlights({ durationMinutes: 135 });
 });
+
 

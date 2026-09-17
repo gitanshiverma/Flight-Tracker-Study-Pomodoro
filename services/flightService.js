@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
+const { fetchLiveFlights, fetchLiveFlightByNumber } = require('./flightradarClient');
 const { fetchLiveStatus } = require('./aviationStackClient');
 const { fetchLivePosition } = require('./openSkyClient');
+const { AIRPORTS } = require('../data/airports');
 
 const DATA_PATH = path.join(__dirname, '..', 'data', 'flights.json');
 const SERVER_START = Date.now();
@@ -17,7 +19,7 @@ function loadFallbackFlights() {
 }
 
 /**
- * Compute real-time flight telemetry (progress, altitude, speed, flight phase)
+ * Compute simulated real-time flight telemetry (progress, altitude, speed, flight phase)
  */
 function computeProgress(flight, customElapsedSeconds = null) {
   const totalSeconds = (flight.durationMinutes || 60) * 60;
@@ -66,45 +68,82 @@ function computeProgress(flight, customElapsedSeconds = null) {
     currentSpeedKmh = 0;
   }
 
-  const lat = flight.origin.lat + (flight.destination.lat - flight.origin.lat) * t;
-  const lon = flight.origin.lon + (flight.destination.lon - flight.origin.lon) * t;
+  const origLat = flight.origin?.lat || 28.5562;
+  const origLon = flight.origin?.lon || 77.1000;
+  const destLat = flight.destination?.lat || 19.0896;
+  const destLon = flight.destination?.lon || 72.8656;
+
+  const lat = origLat + (destLat - origLat) * t;
+  const lon = origLon + (destLon - origLon) * t;
 
   return {
     ...flight,
     elapsedSeconds: Math.round(elapsedSeconds),
     remainingSeconds: Math.round(remainingSeconds),
     progressPct: Number(progressPct.toFixed(2)),
-    altitudeFt,
-    currentSpeedKmh,
-    flightPhase,
+    altitudeFt: flight.altitudeFt || altitudeFt,
+    currentSpeedKmh: flight.speedKmh || currentSpeedKmh,
+    flightPhase: flight.flightPhase || flightPhase,
     currentPosition: {
       lat: Number(lat.toFixed(4)),
       lon: Number(lon.toFixed(4))
     },
-    source: 'simulated'
+    lat: Number(lat.toFixed(4)),
+    lon: Number(lon.toFixed(4)),
+    source: flight.source || 'simulated'
   };
 }
 
 /**
- * Filter flights by duration, origin/destination, and search terms
+ * Filter flights by duration, origin/destination, and search terms, combining Flightradar24 live feed with curated catalog
  */
 async function getFlights(query = {}) {
-  const flights = loadFallbackFlights();
-  const { from, to, durationMinutes, tolerance, search, airline } = query;
+  const { from, to, durationMinutes, tolerance, search, airline, source, lat, lon, zoom, bounds } = query;
 
-  let results = flights;
+  let results = [];
 
-  // 1. Search Query (matches flight number, city, airport name, airline)
+  // If source is 'catalog' only, use fallback dataset
+  if (source === 'catalog') {
+    results = loadFallbackFlights().map((f) => computeProgress(f));
+  } else {
+    // Fetch live flights from Flightradar24 (defaults to 28.65, 77.23 / zoom 6)
+    try {
+      const liveFlights = await fetchLiveFlights({ lat, lon, zoom, bounds });
+      if (liveFlights && liveFlights.length > 0) {
+        results = liveFlights;
+      }
+    } catch (err) {
+      console.warn('Flightradar24 live fetch failed, falling back to curated flights:', err.message);
+    }
+
+    // If no live flights or user wants all, append curated catalogue flights
+    if (results.length === 0 || source === 'all') {
+      const catalogFlights = loadFallbackFlights().map((f) => computeProgress(f));
+      // Avoid duplicate flight numbers
+      const existingNos = new Set(results.map((f) => normalizeFlightNo(f.flightNumber)));
+      catalogFlights.forEach((cf) => {
+        if (!existingNos.has(normalizeFlightNo(cf.flightNumber))) {
+          results.push(cf);
+        }
+      });
+    }
+  }
+
+  // 1. Search Query (matches flight number, callsign, city, airport name, airline)
   if (search) {
     const q = search.trim().toLowerCase();
     results = results.filter(
       (f) =>
-        f.flightNumber.toLowerCase().includes(q) ||
-        f.airline.toLowerCase().includes(q) ||
-        f.origin.city.toLowerCase().includes(q) ||
-        f.origin.code.toLowerCase().includes(q) ||
-        f.destination.city.toLowerCase().includes(q) ||
-        f.destination.code.toLowerCase().includes(q)
+        (f.flightNumber && f.flightNumber.toLowerCase().includes(q)) ||
+        (f.callsign && f.callsign.toLowerCase().includes(q)) ||
+        (f.airline && f.airline.toLowerCase().includes(q)) ||
+        (f.origin?.city && f.origin.city.toLowerCase().includes(q)) ||
+        (f.origin?.code && f.origin.code.toLowerCase().includes(q)) ||
+        (f.origin?.name && f.origin.name.toLowerCase().includes(q)) ||
+        (f.destination?.city && f.destination.city.toLowerCase().includes(q)) ||
+        (f.destination?.code && f.destination.code.toLowerCase().includes(q)) ||
+        (f.destination?.name && f.destination.name.toLowerCase().includes(q)) ||
+        (f.aircraft && f.aircraft.toLowerCase().includes(q))
     );
   }
 
@@ -113,8 +152,8 @@ async function getFlights(query = {}) {
     const fromQ = from.trim().toLowerCase();
     results = results.filter(
       (f) =>
-        f.origin.code.toLowerCase() === fromQ ||
-        f.origin.city.toLowerCase().includes(fromQ)
+        (f.origin?.code && f.origin.code.toLowerCase() === fromQ) ||
+        (f.origin?.city && f.origin.city.toLowerCase().includes(fromQ))
     );
   }
 
@@ -123,41 +162,39 @@ async function getFlights(query = {}) {
     const toQ = to.trim().toLowerCase();
     results = results.filter(
       (f) =>
-        f.destination.code.toLowerCase() === toQ ||
-        f.destination.city.toLowerCase().includes(toQ)
+        (f.destination?.code && f.destination.code.toLowerCase() === toQ) ||
+        (f.destination?.city && f.destination.city.toLowerCase().includes(toQ))
     );
   }
 
   // 4. Airline filter
   if (airline) {
     const airQ = airline.trim().toLowerCase();
-    results = results.filter((f) => f.airline.toLowerCase().includes(airQ));
+    results = results.filter(
+      (f) =>
+        (f.airline && f.airline.toLowerCase().includes(airQ)) ||
+        (f.airlineCode && f.airlineCode.toLowerCase().includes(airQ))
+    );
   }
 
   // 5. Match by study duration (minutes)
   if (durationMinutes) {
     const target = parseFloat(durationMinutes);
-    const tol = parseFloat(tolerance) || 30; // default 30 min tolerance window
+    const tol = parseFloat(tolerance) || 45; // default 45 min tolerance window
 
-    // Calculate match percentage for every flight
     results = results
       .map((f) => {
-        const diff = Math.abs(f.durationMinutes - target);
-        // Match percentage score: 100% when exact, dropping off smoothly
+        const dur = f.durationMinutes || 60;
+        const diff = Math.abs(dur - target);
+        // Match percentage score
         const matchPct = Math.max(0, Math.round(100 - (diff / Math.max(target, 30)) * 100));
         return { ...f, matchPct, matchScore: matchPct, diffMinutes: diff };
       })
+      .filter((f) => f.diffMinutes <= (tol * 2))
       .sort((a, b) => a.diffMinutes - b.diffMinutes);
   }
 
-  return results.map((f) => {
-    const prog = computeProgress(f);
-    if (f.matchScore !== undefined) {
-      prog.matchScore = f.matchScore;
-      prog.matchPct = f.matchPct;
-    }
-    return prog;
-  });
+  return results;
 }
 
 function normalizeFlightNo(no) {
@@ -168,50 +205,77 @@ function normalizeFlightNo(no) {
  * Get all unique departure and arrival airports for dropdowns
  */
 async function getAllAirports() {
-  const flights = loadFallbackFlights();
   const airportMap = new Map();
 
-  flights.forEach((f) => {
-    if (!airportMap.has(f.origin.code)) {
-      airportMap.set(f.origin.code, {
-        code: f.origin.code,
-        city: f.origin.city,
-        name: f.origin.name,
-        country: f.origin.country
-      });
+  // Load from comprehensive database
+  Object.values(AIRPORTS).forEach((a) => {
+    airportMap.set(a.code, a);
+  });
+
+  // Load from fallback dataset
+  const fallback = loadFallbackFlights();
+  fallback.forEach((f) => {
+    if (f.origin?.code && !airportMap.has(f.origin.code)) {
+      airportMap.set(f.origin.code, f.origin);
     }
-    if (!airportMap.has(f.destination.code)) {
-      airportMap.set(f.destination.code, {
-        code: f.destination.code,
-        city: f.destination.city,
-        name: f.destination.name,
-        country: f.destination.country
-      });
+    if (f.destination?.code && !airportMap.has(f.destination.code)) {
+      airportMap.set(f.destination.code, f.destination);
     }
   });
 
-  return Array.from(airportMap.values()).sort((a, b) => a.city.localeCompare(b.city));
+  return Array.from(airportMap.values()).sort((a, b) =>
+    (a.city || a.name).localeCompare(b.city || b.name)
+  );
 }
 
+/**
+ * Retrieve a flight by flight number or callsign (checks live Flightradar24 first)
+ */
 async function getFlightByNumber(flightNumber) {
+  if (!flightNumber) return null;
+
+  // 1. Try Live Flightradar24
+  try {
+    const live = await fetchLiveFlightByNumber(flightNumber);
+    if (live) return live;
+  } catch (err) {
+    console.warn('Flightradar24 single flight lookup error:', err.message);
+  }
+
+  // 2. Fallback to curated dataset
   const flights = loadFallbackFlights();
   const target = normalizeFlightNo(flightNumber);
   const flight = flights.find(
-    (f) => normalizeFlightNo(f.flightNumber) === target || normalizeFlightNo(f.callsign) === target
+    (f) =>
+      normalizeFlightNo(f.flightNumber) === target ||
+      normalizeFlightNo(f.callsign) === target ||
+      normalizeFlightNo(f.flightNumber).includes(target)
   );
   if (!flight) return null;
   return computeProgress(flight);
 }
 
 /**
- * "Live" lookup: tries AviationStack + OpenSky, gracefully falls back
+ * "Live" lookup: prioritizes Flightradar24 live position + telemetry, then AviationStack + OpenSky, gracefully falls back
  */
 async function getLiveFlight(flightNumber, customElapsedSeconds = null) {
+  // 1. Check Flightradar24 Live Feed
+  try {
+    const frLive = await fetchLiveFlightByNumber(flightNumber);
+    if (frLive) {
+      return frLive;
+    }
+  } catch (err) {
+    // Ignore and fallback
+  }
+
+  // 2. Fallback baseline simulation
   const baseline = await getFlightByNumber(flightNumber);
   if (!baseline) return null;
 
   let result = computeProgress(baseline, customElapsedSeconds);
 
+  // 3. Try AviationStack
   try {
     const live = await fetchLiveStatus(baseline.flightNumber);
     if (live) {
@@ -224,22 +288,33 @@ async function getLiveFlight(flightNumber, customElapsedSeconds = null) {
       };
     }
   } catch (err) {
-    // ignore
+    // Ignore
   }
 
+  // 4. Try OpenSky
   try {
     const pos = await fetchLivePosition(baseline.callsign);
     if (pos) {
       result.currentPosition = { lat: pos.lat, lon: pos.lon };
+      result.lat = pos.lat;
+      result.lon = pos.lon;
       result.altitudeFt = Math.round((pos.altitude || 11000) * 3.28084);
       result.currentSpeedKmh = Math.round((pos.velocity || 230) * 3.6);
       result.source = result.source === 'aviationstack' ? 'aviationstack+opensky' : 'opensky';
     }
   } catch (err) {
-    // ignore
+    // Ignore
   }
 
   return result;
+}
+
+/**
+ * Dedicated Live Radar feed query
+ */
+async function getRadarFlights(options = {}) {
+  const flights = await fetchLiveFlights(options);
+  return flights;
 }
 
 module.exports = {
@@ -247,6 +322,6 @@ module.exports = {
   getFlights,
   getAllAirports,
   getFlightByNumber,
-  getLiveFlight
+  getLiveFlight,
+  getRadarFlights
 };
-

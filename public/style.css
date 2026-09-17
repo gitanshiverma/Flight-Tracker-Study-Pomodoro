@@ -51,6 +51,39 @@ html, body {
   opacity: 1;
 }
 
+/* YouTube Video Live Wallpaper Layer */
+.youtube-wallpaper-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 1;
+  pointer-events: none;
+  background-color: var(--bg-dark);
+  display: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.youtube-wallpaper-container.active {
+  display: block !important;
+  opacity: 1;
+}
+
+.yt-bg-iframe {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100vw;
+  height: 56.25vw; /* 16:9 Aspect Ratio */
+  min-height: 100vh;
+  min-width: 177.77vh; /* 16:9 Aspect Ratio */
+  transform: translate(-50%, -50%) scale(1.05);
+  border: none;
+  pointer-events: none;
+  filter: brightness(1.02) contrast(1.05) saturate(1.1);
+}
+
 .bg-video-element {
   position: absolute;
   top: 50%;
@@ -309,39 +342,240 @@ html, body {
   inset: 0;
   z-index: 10;
   pointer-events: none;
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.5s ease;
 }
-.ui-layer.zen-hidden {
+
+/* Smooth component fade/slide transitions when entering/exiting Zen Mode */
+.top-hud,
+.straight-route-container,
+.spotify-dock {
+  transition: opacity 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.bottom-dock {
+  transition: all 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* When Zen Mode is Active */
+.ui-layer.zen-mode .top-hud {
   opacity: 0;
-  transform: scale(0.98);
+  transform: translateY(-24px);
   pointer-events: none !important;
 }
 
-.zen-restore-btn {
+.ui-layer.zen-mode .spotify-dock {
+  opacity: 0;
+  transform: translateY(24px);
+  pointer-events: none !important;
+}
+
+/* 1. ZEN MODE: Pomodoro Study Timer at Bottom-Left (100% Full Transparent Block) */
+.ui-layer.zen-mode .bottom-dock {
   position: fixed;
   bottom: 24px;
+  left: 24px;
+  transform: none;
+  width: auto;
+  min-width: 290px;
+  max-width: 350px;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 14px 18px;
+  box-shadow: none !important;
+  text-align: left;
+  pointer-events: auto;
+  z-index: 40;
+  opacity: 1 !important;
+}
+
+.ui-layer.zen-mode .bottom-dock .dock-mode-tabs {
+  margin-bottom: 6px;
+  transform: scale(0.85);
+  transform-origin: left center;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.ui-layer.zen-mode .bottom-dock .dock-mode-tab {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.ui-layer.zen-mode .bottom-dock .dock-mode-tab.active {
+  background: rgba(56, 189, 248, 0.22);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+  box-shadow: none;
+}
+
+.ui-layer.zen-mode .bottom-dock .study-clock-display {
+  font-size: 36px;
+  margin: 2px 0 4px 0;
+  text-align: left;
+  text-shadow: 0 0 16px rgba(56, 189, 248, 0.6);
+}
+
+.ui-layer.zen-mode .bottom-dock .session-status-sub {
+  font-size: 11px;
+  margin-bottom: 10px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 310px;
+}
+
+.ui-layer.zen-mode .bottom-dock .dock-controls-row {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.ui-layer.zen-mode .bottom-dock .btn-timer-primary {
+  padding: 7px 18px;
+  font-size: 13px;
+  background: rgba(56, 189, 248, 0.2);
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  backdrop-filter: blur(8px);
+  box-shadow: none;
+}
+.ui-layer.zen-mode .bottom-dock .btn-timer-primary:hover {
+  background: rgba(56, 189, 248, 0.35);
+}
+
+.ui-layer.zen-mode .bottom-dock .btn-timer-secondary {
+  padding: 7px 14px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+}
+
+/* 2. ZEN MODE: Small Transparent Route Block at Center Bottom showing the plane moving on the line */
+.ui-layer.zen-mode .straight-route-container {
+  position: fixed;
+  top: auto;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(460px, calc(100vw - 400px));
+  min-width: 290px;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 12px 18px;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  pointer-events: auto;
+  z-index: 40;
+}
+
+.ui-layer.zen-mode .straight-route-container .route-header-row {
+  margin-bottom: 6px;
+}
+
+.ui-layer.zen-mode .straight-route-container .flight-identity .airline-tag {
+  font-size: 10px;
+  padding: 2px 7px;
+}
+
+.ui-layer.zen-mode .straight-route-container .flight-identity .flight-no {
+  font-size: 14px;
+}
+
+.ui-layer.zen-mode .straight-route-container .flight-identity .aircraft-type,
+.ui-layer.zen-mode .straight-route-container .flight-identity .flight-source-badge {
+  display: none;
+}
+
+.ui-layer.zen-mode .straight-route-container .flight-phase-tag {
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+.ui-layer.zen-mode .straight-route-container .straight-track-wrapper {
+  margin: 6px 0;
+  padding: 0 4px;
+}
+
+.ui-layer.zen-mode .straight-route-container .endpoint-code {
+  font-size: 18px;
+}
+
+.ui-layer.zen-mode .straight-route-container .endpoint-city {
+  font-size: 10px;
+}
+
+.ui-layer.zen-mode .straight-route-container .endpoint-time {
+  display: none;
+}
+
+.ui-layer.zen-mode .straight-route-container .waypoint-markers {
+  display: none;
+}
+
+.ui-layer.zen-mode .straight-route-container .telemetry-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ui-layer.zen-mode .straight-route-container .tele-item:last-child {
+  display: none; /* Hide coords to keep it compact */
+}
+
+.ui-layer.zen-mode .straight-route-container .tele-label {
+  font-size: 8px;
+}
+
+.ui-layer.zen-mode .straight-route-container .tele-val {
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .ui-layer.zen-mode .straight-route-container {
+    bottom: 175px;
+    left: 24px;
+    transform: none;
+    width: min(350px, calc(100vw - 48px));
+  }
+}
+
+/* Zen Restore / Exit Button (Top Right in Fullscreen) */
+.zen-restore-btn {
+  position: fixed;
+  top: 24px;
   right: 24px;
   z-index: 50;
-  background: rgba(10, 15, 26, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(6, 12, 28, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
-  padding: 10px 18px;
+  padding: 9px 18px;
   border-radius: 9999px;
   display: none;
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
-  transition: all 0.2s;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.2);
+  transition: all 0.2s ease;
 }
 .zen-restore-btn:hover {
   background: var(--accent-blue);
   color: #030712;
+  border-color: #38bdf8;
   transform: translateY(-2px);
+  box-shadow: 0 10px 32px rgba(56, 189, 248, 0.4);
 }
 .zen-restore-btn.visible {
   display: flex;
@@ -1392,3 +1626,106 @@ html, body {
   box-shadow: 0 0 8px rgba(29, 185, 84, 0.8);
   transition: width 0.1s linear;
 }
+
+/* =========================================================================
+   FLIGHTRADAR24 LIVE RADAR UI ENHANCEMENTS
+========================================================================= */
+.fr24-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 9999px;
+  padding: 4px 11px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #38bdf8;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fr24-live-pill:hover {
+  background: rgba(14, 165, 233, 0.22);
+  border-color: #38bdf8;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+}
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulsePing 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes pulsePing {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.flight-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 6px;
+  margin-left: 8px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.radar-banner {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(30, 41, 59, 0.7));
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.radar-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.radar-banner-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.radar-banner-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 2px;
+}
+
+.fcard-fr24 {
+  border-left: 3px solid #38bdf8 !important;
+}
+

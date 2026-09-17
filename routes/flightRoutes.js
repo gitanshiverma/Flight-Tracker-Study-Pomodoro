@@ -4,7 +4,8 @@ const {
   getFlights,
   getAllAirports,
   getFlightByNumber,
-  getLiveFlight
+  getLiveFlight,
+  getRadarFlights
 } = require('../services/flightService');
 
 // GET /api/flights/airports — list all distinct airports for dropdowns
@@ -17,12 +18,32 @@ router.get('/airports', async (req, res) => {
   }
 });
 
+// GET /api/flights/radar — live Flightradar24 radar feed (defaults to 28.65, 77.23, zoom 6)
+router.get('/radar', async (req, res) => {
+  try {
+    const lat = req.query.lat ? parseFloat(req.query.lat) : 28.65;
+    const lon = req.query.lon ? parseFloat(req.query.lon) : 77.23;
+    const zoom = req.query.zoom ? parseInt(req.query.zoom, 10) : 6;
+    const bounds = req.query.bounds || null;
+
+    const flights = await getRadarFlights({ lat, lon, zoom, bounds });
+    res.json({
+      center: { lat, lon, zoom },
+      count: flights.length,
+      source: 'flightradar24',
+      flights
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve Flightradar24 radar flights', details: err.message });
+  }
+});
+
 // GET /api/flights/match-duration?minutes=120&tolerance=30
 router.get('/match-duration', async (req, res) => {
   try {
     const minutes = parseFloat(req.query.minutes) || 60;
     const tolerance = parseFloat(req.query.tolerance) || 45;
-    const flights = await getFlights({ durationMinutes: minutes, tolerance });
+    const flights = await getFlights({ durationMinutes: minutes, tolerance, ...req.query });
     res.json({ targetMinutes: minutes, count: flights.length, flights });
   } catch (err) {
     res.status(500).json({ error: 'Failed to match flights by duration' });
@@ -50,7 +71,7 @@ router.get('/:flightNumber', async (req, res) => {
   }
 });
 
-// GET /api/flights/:flightNumber/live — live lookup + session progress
+// GET /api/flights/:flightNumber/live — live lookup with Flightradar24 + session progress
 router.get('/:flightNumber/live', async (req, res) => {
   try {
     const customElapsed = req.query.elapsedSeconds ? parseFloat(req.query.elapsedSeconds) : null;
@@ -63,4 +84,3 @@ router.get('/:flightNumber/live', async (req, res) => {
 });
 
 module.exports = router;
-

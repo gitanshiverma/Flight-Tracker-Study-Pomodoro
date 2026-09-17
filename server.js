@@ -15,10 +15,7 @@ app.use('/api/flights', flightRoutes);
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.listen(PORT, () => {
-  console.log(`Flight backend running on http://localhost:${PORT}`);
-  console.log(
-    process.env.AVIATIONSTACK_KEY
-      ? 'AviationStack key detected — /live routes will try real data first.'
-      : 'No AVIATIONSTACK_KEY set — /live routes will use OpenSky position + simulated timing.'
-  );
+  console.log(`✈️ Flight backend running on http://localhost:${PORT}`);
+  console.log('📡 Flightradar24 live feed active (Target sector: 28.65, 77.23 / zoom 6)');
 });
+
