@@ -18,7 +18,11 @@ Every tier degrades gracefully — if a live source fails, times out, or has no 
 
 ```bash
 npm install
-npm start          # http://localhost:4000
+npm start
+
+ Local host likn:
+ http://localhost:4000
+
 ```
 
 Optional — enable real AviationStack data:
@@ -56,6 +60,11 @@ npm start
 }
 ```
 
+## Database
+The datatset comes from the real flight tracker website
+https://www.flightradar24.com/47.42,11.17/4
+
+
 ## Frontend
 
 `public/index.html` is served directly by this same Express server — open
@@ -69,9 +78,13 @@ the "backend offline · local simulation" label appears in the flight card
 and the dashboard keeps running off the last known values instead of
 breaking.
 
-City lights, clouds, and the mouse-parallax 3D tilt keep running underneath
-regardless of connection state — only the flight timing/route data depends
-on the API.
+------
+
+## Deployment link:
+https://flight-tracker-study-pomodoro.vercel.app/
+
+-------
+
 
 ## Adding more routes
 
