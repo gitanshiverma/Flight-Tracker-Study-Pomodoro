@@ -81,7 +81,7 @@ breaking.
 ------
 
 ## Deployment link:
-https://flight-tracker-study-pomodoro.vercel.app/
+https://flight-tracker-study-pomodoro.vercel.app?_vercel_share=8LrpoRZ4x59x30vFeKAr9TvH6jVXO2y5
 
 -------
 
