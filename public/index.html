@@ -19,7 +19,7 @@
 
     <!-- Real-Time Video Wallpaper Background Layer (Plays actual flight/study video instead of AI objects) -->
     <div id="videoWallpaperContainer" class="video-wallpaper-container active" style="display: block;">
-      <video id="bgVideoPlayer" class="bg-video-element" autoplay loop muted playsinline preload="auto">
+      <video id="bgVideoPlayer" class="bg-video-element" autoplay loop muted playsinline webkit-playsinline disableRemotePlayback preload="auto">
         <source id="bgVideoSource" src="/assets/student-with-laptop-aesthetic-college-aesthetic-la-hd-auto-.mp4" type="video/mp4">
       </video>
       <div class="video-overlay-fx"></div>
@@ -263,30 +263,6 @@
           <span id="wp3">CRUISE (50%)</span>
           <span id="wp4">DESCENT (75%)</span>
           <span id="wp5">ARR (100%)</span>
-        </div>
-      </div>
-
-      <!-- Flight Telemetry Stats Row -->
-      <div class="telemetry-row">
-        <div class="tele-item">
-          <span class="tele-label">Altitude</span>
-          <span id="teleAltitude" class="tele-val">38,000 <span>FT</span></span>
-        </div>
-        <div class="tele-item">
-          <span class="tele-label">Ground Speed</span>
-          <span id="teleSpeed" class="tele-val">495 <span>KTS</span></span>
-        </div>
-        <div class="tele-item">
-          <span class="tele-label">Distance Rem.</span>
-          <span id="teleDistance" class="tele-val">1,048 <span>NM</span></span>
-        </div>
-        <div class="tele-item">
-          <span class="tele-label">Estimated ETE</span>
-          <span id="teleETA" class="tele-val">02:15:00</span>
-        </div>
-        <div class="tele-item">
-          <span class="tele-label">Live Position</span>
-          <span id="teleCoords" class="tele-val" style="font-size: 13px;">28.65°N, 77.23°E</span>
         </div>
       </div>
     </section>

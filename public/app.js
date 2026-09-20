@@ -28,8 +28,11 @@ let activeFlight = {
 let timerMode = 'flight'; // 'pomodoro' | 'flight' | 'custom'
 let sessionTotalSeconds = 135 * 60;
 let sessionElapsedSeconds = 0;
+let timerStartTimeMs = null;    // Real-world timestamp (epoch ms) when session started/resumed
+let timerBaseElapsedSecs = 0;   // Accumulated elapsed seconds prior to current start
 let isTimerRunning = false;
 let timerInterval = null;
+let bgWorker = null;            // Background Web Worker to prevent browser tab throttling
 
 let seatbeltFastened = true;
 let isZenMode = false;
@@ -125,6 +128,7 @@ let cloudBillboards = [];
 let mouseX = 0, mouseY = 0, targetMouseX = 0, targetMouseY = 0;
 let clock = new THREE.Clock();
 let threeInitialized = false;
+let animFrameId = null;
 
 function initThreeScene() {
   if (threeInitialized) return;
@@ -143,7 +147,7 @@ function initThreeScene() {
 
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setSize(width, height);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.25;
 
@@ -370,9 +374,9 @@ function createSunsetAirplaneWing() {
   scene.add(wingGroup);
 }
 
-/* --- 3D Sprawling Night City Grid (42,000+ Points) --- */
+/* --- 3D Sprawling Night City Grid (Optimized 8,000 Points) --- */
 function createSprawlingNightCityGrid() {
-  const cityCount = 45000;
+  const cityCount = 8000;
   const cityGeo = new THREE.BufferGeometry();
   const positions = new Float32Array(cityCount * 3);
   const colors = new Float32Array(cityCount * 3);
@@ -395,7 +399,6 @@ function createSprawlingNightCityGrid() {
     positions[i * 3 + 2] = z;
 
     // Rich palette matching photo:
-    // 60% Warm Amber Sodium, 25% Golden Streetlights, 12% Cool White Warehouse/Commercial, 3% Cyan
     const r = Math.random();
     if (r < 0.60) {
       colors[i * 3] = 1.0; colors[i * 3 + 1] = 0.56 + Math.random() * 0.16; colors[i * 3 + 2] = 0.08;
@@ -460,7 +463,7 @@ function createWarehouseAndStadiumLandmarks() {
     metalness: 0.8
   });
 
-  for (let i = 0; i < 65; i++) {
+  for (let i = 0; i < 28; i++) {
     const w = 40 + Math.random() * 60;
     const h = 10 + Math.random() * 15;
     const d = 30 + Math.random() * 45;
@@ -473,7 +476,7 @@ function createWarehouseAndStadiumLandmarks() {
     warehouseMeshes.add(mesh);
   }
 
-  // Sports Field / Stadium (Right side of photo)
+  // Sports Field / Stadium
   const stadiumGeo = new THREE.PlaneGeometry(80, 50);
   const stadiumMat = new THREE.MeshBasicMaterial({ color: 0x84cc16, side: THREE.DoubleSide });
   stadiumMesh = new THREE.Mesh(stadiumGeo, stadiumMat);
@@ -488,10 +491,10 @@ function createWarehouseAndStadiumLandmarks() {
   scene.add(warehouseMeshes);
 }
 
-/* --- Flowing 3D Highway Traffic Streams --- */
+/* --- Flowing 3D Highway Traffic Streams (Optimized) --- */
 function createHighwayTrafficStreams() {
-  const headCount = 6500;
-  const tailCount = 6500;
+  const headCount = 1200;
+  const tailCount = 1200;
 
   const headGeo = new THREE.BufferGeometry();
   const headPos = new Float32Array(headCount * 3);
@@ -538,7 +541,7 @@ function createHighwayTrafficStreams() {
 
 /* --- Volumetric Drifting Clouds Beneath Wing --- */
 function createVolumetricClouds() {
-  const cloudCount = 38;
+  const cloudCount = 16;
   const cloudGeo = new THREE.SphereGeometry(80, 16, 12);
   const cloudMat = new THREE.MeshLambertMaterial({
     color: 0x221c2e,
@@ -572,12 +575,20 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-/* --- 3D Animation Render Loop --- */
+/* --- 3D Animation Render Loop (Zero CPU/GPU usage when in Video/Photo mode) --- */
 function animate3D() {
-  requestAnimationFrame(animate3D);
-  if (currentWallpaperMode !== 0 || !renderer) return;
+  const currentMode = wallpaperModes[currentWallpaperMode];
+  if (!currentMode || currentMode.type !== '3d' || !renderer) {
+    if (animFrameId) {
+      cancelAnimationFrame(animFrameId);
+      animFrameId = null;
+    }
+    return;
+  }
 
-  const delta = clock.getDelta();
+  animFrameId = requestAnimationFrame(animate3D);
+
+  const delta = Math.min(0.1, clock.getDelta());
   const time = clock.getElapsedTime();
 
   // 1. Mouse Parallax Smoothing
@@ -589,7 +600,7 @@ function animate3D() {
   camera.position.x = -58 + mouseX * 14;
   camera.position.y = 46 - mouseY * 9;
 
-  // 2. Realistic Cruising Aerodynamics (NO BLINKING)
+  // 2. Realistic Cruising Aerodynamics
   if (wingGroup) {
     wingGroup.rotation.z = Math.sin(time * 0.8) * 0.012;
     wingGroup.rotation.x = Math.cos(time * 0.6) * 0.008;
@@ -600,7 +611,7 @@ function animate3D() {
     }
   }
 
-  // 3. Ground City & Highway Motion (880 km/h Flight Speed)
+  // 3. Ground City & Highway Motion
   const flightSpeed = 175 * delta;
 
   if (cityParticles) {
@@ -938,6 +949,136 @@ function formatMS(totalSeconds) {
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
+function getLiveElapsedSeconds() {
+  if (!isTimerRunning || !timerStartTimeMs) {
+    return sessionElapsedSeconds;
+  }
+  const now = Date.now();
+  const diffSecs = Math.floor((now - timerStartTimeMs) / 1000);
+  return Math.min(sessionTotalSeconds, (timerBaseElapsedSecs || 0) + Math.max(0, diffSecs));
+}
+
+function updateLiveTabTitle() {
+  if (isTimerRunning) {
+    const remSecs = Math.max(0, sessionTotalSeconds - sessionElapsedSeconds);
+    const flightCode = activeFlight?.flightNumber || 'Flight';
+    document.title = `(${formatMS(remSecs)}) ✈️ ${flightCode} · AeroFocus`;
+  } else {
+    document.title = 'AeroFocus · 3D Flight Tracker Pomodoro Study';
+  }
+}
+
+function saveTimerStateToStorage() {
+  try {
+    const liveSecs = getLiveElapsedSeconds();
+    const state = {
+      timerMode,
+      sessionTotalSeconds,
+      sessionElapsedSeconds: liveSecs,
+      timerBaseElapsedSecs: isTimerRunning ? liveSecs : timerBaseElapsedSecs,
+      isTimerRunning,
+      timerStartTimeMs: isTimerRunning ? timerStartTimeMs : null,
+      activeFlight,
+      savedAt: Date.now()
+    };
+    localStorage.setItem('aerofocus_timer_state_v1', JSON.stringify(state));
+  } catch (e) {}
+}
+
+function restoreTimerStateFromStorage() {
+  try {
+    const raw = localStorage.getItem('aerofocus_timer_state_v1');
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    if (!state) return;
+
+    if (state.timerMode) timerMode = state.timerMode;
+    if (state.sessionTotalSeconds) sessionTotalSeconds = state.sessionTotalSeconds;
+    if (state.activeFlight) activeFlight = state.activeFlight;
+
+    if (state.isTimerRunning && state.timerStartTimeMs) {
+      const now = Date.now();
+      const elapsedSinceStart = Math.floor((now - state.timerStartTimeMs) / 1000);
+      const totalElapsed = (state.timerBaseElapsedSecs || 0) + elapsedSinceStart;
+
+      if (totalElapsed >= sessionTotalSeconds) {
+        sessionElapsedSeconds = sessionTotalSeconds;
+        timerBaseElapsedSecs = sessionTotalSeconds;
+        timerStartTimeMs = null;
+        isTimerRunning = false;
+      } else {
+        sessionElapsedSeconds = totalElapsed;
+        timerBaseElapsedSecs = state.timerBaseElapsedSecs || 0;
+        timerStartTimeMs = state.timerStartTimeMs;
+        isTimerRunning = true;
+        startTimer(); // Re-arm background worker and intervals
+      }
+    } else {
+      sessionElapsedSeconds = state.sessionElapsedSeconds || 0;
+      timerBaseElapsedSecs = state.timerBaseElapsedSecs || sessionElapsedSeconds;
+      timerStartTimeMs = null;
+      isTimerRunning = false;
+    }
+
+    document.getElementById('tabModePomodoro')?.classList.toggle('active', timerMode === 'pomodoro');
+    document.getElementById('tabModeFlight')?.classList.toggle('active', timerMode === 'flight');
+    document.getElementById('tabModeCustom')?.classList.toggle('active', timerMode === 'custom');
+  } catch (e) {}
+}
+
+function initBackgroundWorker() {
+  if (typeof window !== 'undefined' && window.Worker && !bgWorker) {
+    try {
+      const workerCode = `
+        let timer = null;
+        self.onmessage = function(e) {
+          if (e.data === 'start') {
+            if (timer) clearInterval(timer);
+            timer = setInterval(function() {
+              self.postMessage('tick');
+            }, 500);
+          } else if (e.data === 'stop') {
+            if (timer) clearInterval(timer);
+            timer = null;
+          }
+        };
+      `;
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      bgWorker = new Worker(URL.createObjectURL(blob));
+      bgWorker.onmessage = function(e) {
+        if (e.data === 'tick' && isTimerRunning) {
+          onTimerHeartbeat();
+        }
+      };
+    } catch (err) {
+      console.warn('Web Worker setup fallback:', err);
+    }
+  }
+}
+
+function onTimerHeartbeat() {
+  if (!isTimerRunning) return;
+  const currentElapsed = getLiveElapsedSeconds();
+  sessionElapsedSeconds = currentElapsed;
+  updateTelemetryAndProgress();
+  updateLiveTabTitle();
+
+  if (sessionElapsedSeconds >= sessionTotalSeconds) {
+    completeSession();
+  }
+}
+
+function onVisibilityOrWake() {
+  if (isTimerRunning) {
+    onTimerHeartbeat();
+  }
+}
+
+// Attach lifecycle events for background tabs & waking from PC sleep
+document.addEventListener('visibilitychange', onVisibilityOrWake);
+window.addEventListener('focus', onVisibilityOrWake);
+window.addEventListener('pageshow', onVisibilityOrWake);
+
 function toggleTimer() {
   if (isTimerRunning) {
     pauseTimer();
@@ -947,10 +1088,21 @@ function toggleTimer() {
 }
 
 function startTimer() {
+  // Request system notification permission for flight landings
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {});
+  }
+
   if (sessionElapsedSeconds >= sessionTotalSeconds) {
     sessionElapsedSeconds = 0;
+    timerBaseElapsedSecs = 0;
   }
+
   isTimerRunning = true;
+  timerStartTimeMs = Date.now();
+  timerBaseElapsedSecs = sessionElapsedSeconds;
+  saveTimerStateToStorage();
+
   document.getElementById('mainTimerBtn')?.classList.add('running');
   const btnText = document.getElementById('mainTimerBtnText');
   if (btnText) btnText.innerText = 'Pause Session';
@@ -959,40 +1111,60 @@ function startTimer() {
 
   playSeatbeltChime();
 
-  if (!timerInterval) {
-    timerInterval = setInterval(() => {
-      sessionElapsedSeconds++;
-      updateTelemetryAndProgress();
-
-      if (sessionElapsedSeconds >= sessionTotalSeconds) {
-        completeSession();
-      }
-    }, 1000);
+  if (bgWorker) {
+    bgWorker.postMessage('start');
   }
+
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    onTimerHeartbeat();
+  }, 500);
+
+  updateLiveTabTitle();
 }
 
 function pauseTimer() {
+  if (isTimerRunning) {
+    sessionElapsedSeconds = getLiveElapsedSeconds();
+    timerBaseElapsedSecs = sessionElapsedSeconds;
+  }
   isTimerRunning = false;
+  timerStartTimeMs = null;
+  saveTimerStateToStorage();
+
+  if (bgWorker) {
+    bgWorker.postMessage('stop');
+  }
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
   }
+
   document.getElementById('mainTimerBtn')?.classList.remove('running');
   const btnText = document.getElementById('mainTimerBtnText');
   if (btnText) btnText.innerText = sessionElapsedSeconds > 0 ? 'Resume Flight' : 'Start Study Session';
   const playIcon = document.getElementById('timerPlayIcon');
   if (playIcon) playIcon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+
+  updateLiveTabTitle();
 }
 
 function resetTimer() {
   pauseTimer();
   sessionElapsedSeconds = 0;
+  timerBaseElapsedSecs = 0;
+  timerStartTimeMs = null;
+
   if (timerMode === 'pomodoro') {
     sessionTotalSeconds = 25 * 60;
   } else if (timerMode === 'flight') {
     sessionTotalSeconds = (activeFlight?.durationMinutes || 135) * 60;
   }
+
+  saveTimerStateToStorage();
   updateTelemetryAndProgress();
+  updateLiveTabTitle();
+
   const btnText = document.getElementById('mainTimerBtnText');
   if (btnText) btnText.innerText = 'Start Study Session';
 }
@@ -1000,12 +1172,26 @@ function resetTimer() {
 function completeSession() {
   pauseTimer();
   playSeatbeltChime();
+
+  // Desktop Notification if completed in background tab or after PC sleep
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification('🛬 Flight Landed Safely!', {
+        body: `Study session completed! (${formatHMS(sessionTotalSeconds)}). Great job!`,
+        icon: '/assets/bg-sunset-wing.png',
+        silent: false
+      });
+    } catch (e) {}
+  }
+
   const celModal = document.getElementById('celebrationModal');
   const celDur = document.getElementById('celDuration');
   const celDist = document.getElementById('celDistance');
   if (celDur) celDur.innerText = formatHMS(sessionTotalSeconds);
   if (celDist) celDist.innerText = `${Math.round((activeFlight?.distanceKm || 2000) * 0.539957).toLocaleString()} NM`;
   if (celModal) celModal.classList.add('open');
+
+  document.title = '🛬 Flight Landed! · AeroFocus';
 }
 
 function closeCelebrationModal() {
@@ -1022,10 +1208,14 @@ function setTimerMode(mode) {
   if (mode === 'pomodoro') {
     sessionTotalSeconds = 25 * 60;
     sessionElapsedSeconds = 0;
+    timerBaseElapsedSecs = 0;
+    timerStartTimeMs = null;
     resetTimer();
   } else if (mode === 'flight') {
     sessionTotalSeconds = (activeFlight?.durationMinutes || 135) * 60;
     sessionElapsedSeconds = 0;
+    timerBaseElapsedSecs = 0;
+    timerStartTimeMs = null;
     resetTimer();
   } else if (mode === 'custom') {
     openFlightSearchModal('duration');
@@ -1446,6 +1636,8 @@ async function selectFlight(flightIdentifier) {
     sessionTotalSeconds = 25 * 60;
   }
   sessionElapsedSeconds = 0;
+  timerBaseElapsedSecs = 0;
+  timerStartTimeMs = null;
   pauseTimer();
 
   updateFlightDisplay();
@@ -1547,6 +1739,9 @@ function setQuickDuration(h, m) {
   if (timerMode === 'custom') {
     sessionTotalSeconds = totalMins * 60;
     sessionElapsedSeconds = 0;
+    timerBaseElapsedSecs = 0;
+    timerStartTimeMs = null;
+    pauseTimer();
     updateTelemetryAndProgress();
   }
   fetchAndRenderFlights({ durationMinutes: totalMins, tolerance: 45 });
@@ -1559,6 +1754,9 @@ function onDurationInputsChanged() {
   if (timerMode === 'custom') {
     sessionTotalSeconds = totalMins * 60;
     sessionElapsedSeconds = 0;
+    timerBaseElapsedSecs = 0;
+    timerStartTimeMs = null;
+    pauseTimer();
     updateTelemetryAndProgress();
   }
   fetchAndRenderFlights({ durationMinutes: totalMins, tolerance: 45 });
@@ -1624,6 +1822,12 @@ function applyWallpaperMode(mode) {
 
   if (bgModeLabel) bgModeLabel.innerText = mode.label;
 
+  // Stop 3D animation loop if switching to a non-3D mode
+  if (mode.type !== '3d' && animFrameId) {
+    cancelAnimationFrame(animFrameId);
+    animFrameId = null;
+  }
+
   if (mode.type === 'youtube') {
     if (webglCanvas) webglCanvas.style.display = 'none';
     if (liveCont) liveCont.style.display = 'none';
@@ -1681,7 +1885,12 @@ function applyWallpaperMode(mode) {
     if (liveCont) liveCont.style.display = 'none';
     if (photoLayer) photoLayer.className = 'photo-bg-layer';
     if (webglCanvas) webglCanvas.style.display = 'block';
-    if (!threeInitialized) initThreeScene();
+    
+    if (!threeInitialized) {
+      initThreeScene();
+    } else if (!animFrameId) {
+      animate3D();
+    }
   } else if (mode.type === 'photo') {
     if (ytCont) {
       ytCont.style.display = 'none';
@@ -2318,7 +2527,8 @@ function stopLofiSynthesizer() {
    7. APP BOOTSTRAP
 ========================================================================= */
 window.addEventListener('DOMContentLoaded', async () => {
-  initThreeScene();
+  initBackgroundWorker();
+  restoreTimerStateFromStorage();
   applyWallpaperMode(wallpaperModes[currentWallpaperMode]);
   loadAirports();
   updateFlightDisplay();
